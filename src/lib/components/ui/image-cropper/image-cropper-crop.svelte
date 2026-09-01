@@ -15,7 +15,7 @@
 </script>
 
 <Button
-	{...rest as /* eslint-disable-line @typescript-eslint/no-explicit-any */ any}
+	{...rest as any}
 	bind:ref
 	{size}
 	{variant}

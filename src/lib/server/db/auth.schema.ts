@@ -4,6 +4,7 @@ import {
   integer,
   text,
   boolean,
+  varchar,
   date,
   index,
   jsonb,
@@ -30,11 +31,17 @@ export const userStatusEnum = pgEnum('user_status', [
 export const user = pgTable("user", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  username: varchar("username", { length: 255 }).unique(),
   email: text("email").notNull().unique(),
+  displayUsername: text("display_username"),
+  phone: text("phone"),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
-  status: userStatusEnum('status').notNull().default('active'), // active | inactive | banned
+  role: userRoleEnum('role').notNull().default('user'),
+  status: userStatusEnum('status').notNull().default('active'),
   lastLoginAt: timestamp('last_login_at'),
+  twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
+  twoFactorSecret: text("two_factor_secret"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

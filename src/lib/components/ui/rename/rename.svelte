@@ -47,6 +47,7 @@
 	let inputRef = $state<HTMLInputElement | HTMLTextAreaElement | null>(null);
 	let textRef = $state<HTMLElement | null>(null);
 
+	// svelte-ignore state_referenced_locally
 	const rootState = useRenameInput({
 		id,
 		mode: box.with(

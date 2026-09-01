@@ -1,6 +1,5 @@
-import type { User, Session } from 'better-auth';
 import { db } from '@/server/db';
-import type { AuthType, AuthUser } from '$lib/server/auth';
+import type { AuthSession, AuthType, AuthUser } from '$lib/server/auth';
 import type { RedisClient } from '$lib/server/redis';
 import type { ServiceHelper } from '@/server/helper';
 // See https://svelte.dev/docs/kit/types#app.d.ts
@@ -8,13 +7,12 @@ import type { ServiceHelper } from '@/server/helper';
 declare global {
   namespace App {
     interface Locals {
-      user?: User;
-      session?: Session
+      user?: AuthUser;
+      session?: AuthSession;
       db: typeof db;
-      redis: RedisClient;
       auth?: AuthType;
-      redis?: RedisClient;
       helper?: ServiceHelper;
+      redis?: RedisClient;
     }
 
     // interface Error {}

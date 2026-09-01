@@ -20,7 +20,7 @@
 </script>
 
 <Button
-	{...rest /* eslint-disable-line @typescript-eslint/no-explicit-any */ as any}
+	{...rest as any}
 	{variant}
 	{size}
 	class={cn('size-8', className)}

@@ -39,7 +39,7 @@
 	{...rest}
 	columns={6}
 	shouldFilter={false}
-	class={cn('max-w-[232px]', className)}
+	class={cn('max-w-58', className)}
 	onValueChange={state.onValueChange}
 >
 	{@render children?.()}

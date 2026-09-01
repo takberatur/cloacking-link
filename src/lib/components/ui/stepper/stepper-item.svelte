@@ -7,6 +7,7 @@
 
 	let { id = uid, class: className, children, ...rest }: StepperItemProps = $props();
 
+	// svelte-ignore state_referenced_locally
 	const stepperItemState = useStepperItem({ id });
 </script>
 

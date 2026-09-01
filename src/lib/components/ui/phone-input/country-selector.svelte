@@ -60,7 +60,7 @@
 		{/snippet}
 	</Popover.Trigger>
 	<Popover.Content
-		class="w-[300px] p-0"
+		class="w-75 p-0"
 		align="start"
 		onCloseAutoFocus={(e) => {
 			if (selectedValue) {
@@ -83,7 +83,7 @@
 							>
 								<Flag {country} />
 								<span class="flex-1 text-sm">{country.name}</span>
-								<span class="text-foreground/50 text-sm">
+								<span class="text-sm text-foreground/50">
 									+{country.dialCode}
 								</span>
 								<div class="w-4">

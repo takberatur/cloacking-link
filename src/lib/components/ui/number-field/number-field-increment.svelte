@@ -45,7 +45,7 @@
 	aria-label="Increase"
 	class={cn('touch-manipulation', className)}
 	{...buttonState.props}
-	{...rest /* eslint-disable-line @typescript-eslint/no-explicit-any */ as any}
+	{...rest as any}
 >
 	{#if children}
 		{@render children?.()}

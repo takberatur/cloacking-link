@@ -43,6 +43,7 @@
 
 	// set default code if there isn't one selected
 	if (value === '') {
+		// svelte-ignore state_referenced_locally
 		value = languages[0].code;
 	}
 </script>
