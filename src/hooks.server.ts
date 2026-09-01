@@ -10,6 +10,8 @@ const initServer: Handle = async ({ event, resolve }) => {
   event.locals.db = db;
   event.locals.helper = new ServiceHelper(event);
 
+  event.locals.setting = await event.locals.helper.setting.getSettings();
+
   return resolve(event);
 };
 const handleBetterAuth: Handle = async ({ event, resolve }) => {

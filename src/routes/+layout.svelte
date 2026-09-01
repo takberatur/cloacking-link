@@ -14,7 +14,7 @@
 <MetaTags {...metaTags} />
 <ModeWatcher />
 <ToastContent />
-<SvelteKitTopLoader color="#bb4d00" />
+<SvelteKitTopLoader color="#1447e6" />
 
 <main class="min-h-screen antialiased">
 	{@render children?.()}

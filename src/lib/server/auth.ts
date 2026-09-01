@@ -1,20 +1,19 @@
-import { env } from '$env/dynamic/private';
+import { APP_NAME, ORIGIN, BETTER_AUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from '$env/static/private';
 import { betterAuth } from 'better-auth/minimal';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { adminAc, userAc } from 'better-auth/plugins/admin/access';
 import { admin } from 'better-auth/plugins';
-import { twoFactor } from "better-auth/plugins"
-import { emailOTP } from "better-auth/plugins"
-import { username } from "better-auth/plugins"
+import { emailOTP, username, twoFactor } from 'better-auth/plugins';
 import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
 import * as schema from '$lib/server/db/schema';
 import { sendEmail } from './email';
 
 export const auth = betterAuth({
-  baseURL: env.ORIGIN,
-  secret: env.BETTER_AUTH_SECRET,
+  appName: APP_NAME || 'Link Shift',
+  baseURL: ORIGIN,
+  secret: BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema: {
@@ -22,25 +21,28 @@ export const auth = betterAuth({
       session: schema.session,
       account: schema.account,
       verification: schema.verification,
+      twoFactor: schema.twoFactor,
       role: schema.role,
       permission: schema.permission,
       rolePermissions: schema.rolePermissions,
       userRelations: schema.userRelations,
       sessionRelations: schema.sessionRelations,
       accountRelations: schema.accountRelations,
+      twoFactorRelations: schema.twoFactorRelations,
       roleRelations: schema.roleRelations,
       permissionRelations: schema.permissionRelations,
-      rolePermissionsRelations: schema.rolePermissionsRelations,
+      rolePermissionsRelations: schema.rolePermissionsRelations
     }
   }),
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
+    requireEmailVerification: true
   },
   socialProviders: {
     google: {
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET
     }
   },
   user: {
@@ -48,7 +50,14 @@ export const auth = betterAuth({
       enabled: true
     },
     additionalFields: {
-      role: { type: 'string', required: false, input: false }
+      username: { type: 'string', required: false },
+      displayUsername: { type: 'string', required: false },
+      role: { type: 'string', required: false, input: false },
+      status: { type: 'string', required: false, input: false },
+      banned: { type: 'boolean', required: false, input: false },
+      banReason: { type: 'string', required: false, input: false },
+      banExpires: { type: 'date', required: false, input: false },
+      twoFactorEnabled: { type: 'boolean', required: false, input: false }
     }
   },
   advanced: {
@@ -59,7 +68,7 @@ export const auth = betterAuth({
     useSecureCookies: true,
     crossSubDomainCookies: {
       enabled: true,
-      domain: env.ORIGIN
+      domain: ORIGIN
     }
   },
   plugins: [
@@ -73,64 +82,71 @@ export const auth = betterAuth({
       }
     }),
     emailOTP({
+      overrideDefaultEmailVerification: true,
+      sendVerificationOnSignUp: true,
+      otpLength: 6,
+      expiresIn: 10 * 60,
+      allowedAttempts: 5,
+      resendStrategy: 'reuse',
       async sendVerificationOTP({ email, otp, type }) {
-        if (type === "sign-in") {
+        if (type === 'sign-in') {
           await sendEmail({
             to: email,
-            subject: `Sign in to ${env.APP_NAME}`,
-            html: `<p>Your sign-in code is: <b>${otp}</b>. It expires in 1 hour.</p>`,
+            subject: `Sign in to ${APP_NAME}`,
+            html: `<p>Your sign-in code is: <b>${otp}</b>. It expires in 1 hour.</p>`
           });
-        } else if (type === "email-verification") {
+        } else if (type === 'email-verification') {
           await sendEmail({
             to: email,
-            subject: `Verify your email for ${env.APP_NAME}`,
-            html: `<p>Your verification code is: <b>${otp}</b>.</p>`,
+            subject: `Verify your email for ${APP_NAME}`,
+            html: `<p>Your verification code is: <b>${otp}</b>.</p>`
           });
-        } else if (type === "forget-password") {
+        } else if (type === 'forget-password') {
           await sendEmail({
             to: email,
-            subject: `Reset your password for ${env.APP_NAME}`,
-            html: `<p>Your password reset code is: <b>${otp}</b>.</p>`,
+            subject: `Reset your password for ${APP_NAME}`,
+            html: `<p>Your password reset code is: <b>${otp}</b>.</p>`
           });
         } else {
           // change email alert to unknown OTP type
           await sendEmail({
             to: email,
             subject: `Unknown OTP type: ${type}`,
-            html: `<p>Notification: ${type}</p><p>Please contact the administrator for more information.</p>`,
+            html: `<p>Notification: ${type}</p><p>Please contact the administrator for more information.</p>`
           });
         }
-      },
+      }
     }),
     username({
       immutableUsername: true,
       minUsernameLength: 5,
       maxUsernameLength: 100,
       usernameValidator: (username) => {
-        if (username === "admin") {
-          return false
+        if (username === 'admin') {
+          return false;
         }
-        return true
+        return true;
       },
       displayUsernameValidator: (displayUsername) => {
-        return /^[a-zA-Z0-9_-]+$/.test(displayUsername)
+        return /^[a-zA-Z0-9_-]+$/.test(displayUsername);
       },
       usernameNormalization: (username) => {
-        return username.toLowerCase()
-          .replaceAll("0", "o")
-          .replaceAll("3", "e")
-          .replaceAll("4", "a");
+        return username
+          .toLowerCase()
+          .replaceAll('0', 'o')
+          .replaceAll('3', 'e')
+          .replaceAll('4', 'a');
       },
-      displayUsernameNormalization: (displayUsername) => displayUsername.toLowerCase(),
+      displayUsernameNormalization: (displayUsername) => displayUsername.toLowerCase()
     }),
     twoFactor({
-      issuer: env.APP_NAME || "Link Shift",
+      issuer: APP_NAME || 'Link Shift',
       otpOptions: {
         async sendOTP({ user, otp }) {
           await sendEmail({
             to: user.email,
-            subject: `2FA Verification Code - ${env.APP_NAME}`,
-            html: `<p>Your 2FA security code is: <b>${otp}</b>. Do not share this code with anyone.</p>`,
+            subject: `2FA Verification Code - ${APP_NAME}`,
+            html: `<p>Your 2FA security code is: <b>${otp}</b>. Do not share this code with anyone.</p>`
           });
         }
       }
@@ -143,5 +159,5 @@ export type AuthType = typeof auth;
 export type Session = AuthType['$Infer']['Session'];
 export type AuthUser = Session['user'];
 export type AuthSession = Session['session'];
-export type Role = typeof schema.userRoleEnum.enumValues[number];
+export type Role = (typeof schema.userRoleEnum.enumValues)[number];
 export const userRoleEnum = schema.userRoleEnum;

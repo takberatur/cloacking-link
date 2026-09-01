@@ -18,15 +18,6 @@ export class ServerBase {
   protected get user() {
     return this.event.locals.user;
   }
-  protected get db() {
-    return this.event.locals.db;
-  }
-  protected get session() {
-    return this.event.locals.session;
-  }
-  protected get redis() {
-    return this.event.locals.redis;
-  }
   protected get helper() {
     return this.event.locals.helper;
   }

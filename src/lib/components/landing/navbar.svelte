@@ -1,8 +1,7 @@
 <script lang="ts">
-	import Logo from './app-logo.svelte';
 	import { LightSwitch } from '$lib/components/ui/light-switch/index';
 	import { Button } from '$lib/components/ui/button/index';
-	import { Menu, X } from '@lucide/svelte';
+	import { Menu, X, Rocket } from '@lucide/svelte';
 
 	let mobileOpen = $state(false);
 
@@ -14,17 +13,20 @@
 	];
 </script>
 
-<header
-	class="sticky top-0 z-50 border-b border-line-light bg-paper/85 backdrop-blur-md dark:border-line-dark dark:bg-ink/85"
->
+<header class="sticky top-0 z-50 border-b border-border bg-sidebar backdrop-blur-md">
 	<div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
-		<Logo />
+		<a href="/" class="flex items-center gap-2">
+			<img src="/logo.png" alt="LinkShift" class="h-6 w-6 object-cover" />
+			<span class="font-display text-xl font-semibold tracking-tight text-ink dark:text-paper">
+				LinkShift
+			</span>
+		</a>
 
 		<nav class="hidden items-center gap-8 md:flex">
 			{#each links as link (link.href)}
 				<a
 					href={link.href}
-					class="text-sm font-medium text-slate-500 transition-colors hover:text-ink dark:hover:text-paper"
+					class="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
 				>
 					{link.label}
 				</a>
@@ -33,37 +35,42 @@
 
 		<div class="hidden items-center gap-3 md:flex">
 			<LightSwitch />
-			<Button href="/signin" variant="ghost" size="sm">Sign in</Button>
-			<Button href="/signup" variant="default" size="sm">Start free</Button>
+			<Button href="/signin" variant="outline" size="lg">Sign in</Button>
+			<Button href="/signup" variant="default" size="lg">
+				<Rocket /> Start free</Button
+			>
 		</div>
 
 		<div class="flex items-center gap-2 md:hidden">
 			<LightSwitch />
-			<button
+			<Button
+				variant="ghost"
+				size="icon"
 				aria-label="Toggle menu"
 				onclick={() => (mobileOpen = !mobileOpen)}
-				class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line-light dark:border-line-dark"
 			>
-				{#if mobileOpen}<X size={16} />{:else}<Menu size={16} />{/if}
-			</button>
+				{#if mobileOpen}<X />{:else}<Menu />{/if}
+			</Button>
 		</div>
 	</div>
 
 	{#if mobileOpen}
-		<div class="border-t border-line-light px-5 py-4 md:hidden dark:border-line-dark">
+		<div class="border-t border-border px-5 py-4 md:hidden">
 			<nav class="flex flex-col gap-3">
 				{#each links as link (link.href)}
 					<a
 						href={link.href}
-						class="text-sm font-medium text-slate-500"
+						class="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
 						onclick={() => (mobileOpen = false)}
 					>
 						{link.label}
 					</a>
 				{/each}
 				<div class="mt-2 flex gap-3">
-					<Button href="/signin" variant="outline" size="sm" class="flex-1">Sign in</Button>
-					<Button href="/signup" variant="default" size="sm" class="flex-1">Start free</Button>
+					<Button href="/signin" variant="outline" size="lg" class="flex-1">Sign in</Button>
+					<Button href="/signup" variant="default" size="lg" class="flex-1">
+						<Rocket /> Start free
+					</Button>
 				</div>
 			</nav>
 		</div>

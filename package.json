@@ -19,7 +19,12 @@
 		"db:migrate": "node scripts/db-migrate.js",
 		"db:mark-baseline": "node scripts/db-mark-baseline.js",
 		"db:studio": "drizzle-kit studio",
-		"auth:schema": "auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes"
+		"auth:schema": "auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes",
+		"db:seed": "tsx src/lib/server/db/seed.ts"
+	},
+	"dependencies": {
+		"@tanstack/svelte-query": "^6.1.48",
+		"@tanstack/svelte-table": "^9.2.4"
 	},
 	"devDependencies": {
 		"@emoji-mart/data": "^1.2.1",
@@ -50,11 +55,13 @@
 		"auth": "^1.6.23",
 		"better-auth": "^1.6.23",
 		"bits-ui": "^2.19.0",
+		"cloudinary": "^2.11.0",
 		"clsx": "^2.1.1",
 		"country-flag-icons": "^1.6.20",
 		"dotenv": "^17.4.2",
 		"drizzle-kit": "^0.31.10",
 		"drizzle-orm": "^0.45.2",
+		"drizzle-seed": "^0.3.1",
 		"embla-carousel-svelte": "^8.6.0",
 		"eslint": "^10.4.1",
 		"eslint-config-prettier": "^10.1.8",
@@ -80,6 +87,7 @@
 		"svelte-meta-tags": "^5.0.2",
 		"svelte-tel-input": "^4.3.2",
 		"svelte-toolbelt": "^0.10.6",
+		"sveltekit-superforms": "^2.30.2",
 		"sveltekit-top-loader": "^0.1.0",
 		"tailwind-merge": "^3.6.0",
 		"tailwind-scrollbar": "^4.0.2",
@@ -92,9 +100,5 @@
 		"vite": "^8.0.16",
 		"yeezy-dates": "^1.1.0",
 		"zod": "^4.5.4"
-	},
-	"dependencies": {
-		"@tanstack/svelte-query": "^6.1.48",
-		"@tanstack/svelte-table": "^9.2.4"
 	}
 }

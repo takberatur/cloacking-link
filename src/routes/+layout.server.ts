@@ -1,25 +1,27 @@
 import type { MetaTag, LinkTag } from 'svelte-meta-tags';
 import { defineBaseMetaTags } from 'svelte-meta-tags';
-import { env } from '$env/dynamic/private';
+import { ORIGIN, NODE_ENV } from '$env/static/private';
 
-export const load = async ({ locals, platform, url }) => {
-  const defaultOrigin = env.ORIGIN || "http://localhost:5000";
+export const load = async ({ locals, url }) => {
+  const { user, session, setting } = locals;
+
+  const defaultOrigin = ORIGIN || setting?.site_url || "http://localhost:5000";
   let canonicalUrl = defaultOrigin;
   if (
-    env?.NODE_ENV &&
-    env?.NODE_ENV === 'production' &&
+    NODE_ENV &&
+    NODE_ENV === 'production' &&
     canonicalUrl.startsWith('http://')
   ) {
     canonicalUrl = canonicalUrl.replace('http://', 'https://');
   }
 
   const baseTags = defineBaseMetaTags({
-    title: 'Link Shift - Shorten Long URLs',
-    titleTemplate: '%s | Link Shift',
+    title: setting?.site_meta_title || 'Link Shift - Shorten Long URLs',
+    titleTemplate: `%s | ${setting?.site_name || 'Link Shift'}`,
     description:
-      'Route, mask, and control every link you share — free, with rotation and access rules built in.',
+      setting?.site_meta_description || 'Cloak and rotate links across multiple destinations, block unwanted traffic by IP, domain, or device, and control every redirect — free.',
     keywords: [
-      'Link Shift',
+      setting?.site_name || 'Link Shift',
       'url shortener',
     ],
     canonical: canonicalUrl + url.pathname,
@@ -30,11 +32,11 @@ export const load = async ({ locals, platform, url }) => {
       },
       {
         property: 'dc:creator',
-        content: 'Link Shift'
+        content: setting?.site_name || 'Link Shift'
       },
       {
         name: 'application-name',
-        content: 'Link Shift'
+        content: setting?.site_name || 'Link Shift'
       },
       {
         httpEquiv: 'x-ua-compatible',
@@ -43,7 +45,7 @@ export const load = async ({ locals, platform, url }) => {
       {
         name: 'description',
         content:
-          'Route, mask, and control every link you share — free, with rotation and access rules built in.'
+          setting?.site_meta_description || 'Cloak and rotate links across multiple destinations, block unwanted traffic by IP, domain, or device, and control every redirect — free.'
       },
       {
         name: 'mobile-web-app-capable',
@@ -55,11 +57,11 @@ export const load = async ({ locals, platform, url }) => {
       },
       {
         name: 'mobile-web-app-title',
-        content: 'Link Shift'
+        content: setting?.site_name || 'Link Shift'
       },
       {
         name: 'mobile-web-app-icon',
-        content: '/favicon.ico'
+        content: setting?.site_favicon || '/favicon.ico'
       }
     ] as MetaTag[],
     additionalLinkTags: [
@@ -76,70 +78,75 @@ export const load = async ({ locals, platform, url }) => {
         rel: 'icon',
         type: 'image/x-icon',
         sizes: '96x96',
-        href: '/logo.png'
+        href: setting?.site_logo || '/logo.png'
       },
       {
         rel: 'icon',
         type: 'image/png',
         sizes: '32x32',
-        href: '/favicon-32x32.png'
+        href: setting?.site_favicon || '/favicon-32x32.png'
       },
       {
         rel: 'icon',
         type: 'image/png',
         sizes: '16x16',
-        href: '/favicon-16x16.png'
+        href: setting?.site_favicon || '/favicon-16x16.png'
       },
       {
         rel: 'icon',
         type: 'image/png',
         sizes: '192x192',
-        href: '/android-chrome-192x192.png'
+        href: setting?.site_favicon || '/android-chrome-192x192.png'
       },
       {
         rel: 'icon',
         type: 'image/png',
         sizes: '512x512',
-        href: '/android-chrome-512x512.png'
+        href: setting?.site_favicon || '/android-chrome-512x512.png'
       },
       {
         rel: 'apple-touch-icon',
         type: 'image/png',
         sizes: '180x180',
-        href: '/apple-touch-icon.png'
+        href: setting?.site_favicon || '/apple-touch-icon.png'
       }
     ] as LinkTag[],
     openGraph: {
       type: 'website',
       url: canonicalUrl + url.pathname,
       locale: 'en_IE',
-      title: 'Link Shift',
+      title: setting?.site_meta_title || 'Link Shift',
       description:
-        'Route, mask, and control every link you share — free, with rotation and access rules built in.',
-      siteName: 'Link Shift',
+        setting?.site_meta_description || 'Cloak and rotate links across multiple destinations, block unwanted traffic by IP, domain, or device, and control every redirect — free.',
+      siteName: setting?.site_name || 'Link Shift',
       images: [
         {
-          url: '/logo.png',
+          url: setting?.site_logo || '/logo.png',
           width: 800,
           height: 600,
-          alt: 'Link Shift Cover Image',
+          alt: setting?.site_name || 'Link Shift Cover Image',
           type: 'image/png'
         },
         {
-          url: '/logo.png',
+          url: setting?.site_logo || '/logo.png',
           width: 512,
           height: 512,
-          alt: 'Link Shift Android Chrome Icon',
+          alt: setting?.site_name || 'Link Shift Android Chrome Icon',
           type: 'image/x-icon'
         }
       ],
       profile: {
-        firstName: 'Link Shift',
-        lastName: 'Link Shift',
-        username: 'linkcloacking'
+        firstName: setting?.site_name || 'Link Shift',
+        lastName: setting?.site_name || 'Link Shift',
+        username: setting?.site_name?.replaceAll(' ', '') || 'linkcloacking'
       }
     }
   });
 
-  return { ...baseTags };
+  return {
+    ...baseTags,
+    user,
+    session,
+    setting
+  };
 };

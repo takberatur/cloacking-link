@@ -13,6 +13,8 @@ declare global {
       auth?: AuthType;
       helper?: ServiceHelper;
       redis?: RedisClient;
+      setting?: SiteSetting;
+      safeGetSettings?: () => Promise<SiteSetting>;
     }
 
     // interface Error {}

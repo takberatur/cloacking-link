@@ -29,12 +29,12 @@
 	];
 </script>
 
-<footer class="border-t border-line-light dark:border-line-dark">
+<footer class="border-t border-border bg-sidebar">
 	<div class="mx-auto max-w-6xl px-5 py-14">
 		<div class="grid grid-cols-2 gap-10 md:grid-cols-5">
 			<div class="col-span-2">
 				<Logo />
-				<p class="mt-3 max-w-xs text-sm leading-relaxed text-slate-500">
+				<p class="mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
 					Route, mask, and control every link you share — free, with rotation and access rules built
 					in.
 				</p>
@@ -49,7 +49,7 @@
 							<li>
 								<a
 									href={link.href}
-									class="text-sm text-slate-500 transition-colors hover:text-ink dark:hover:text-paper"
+									class="text-sm text-muted-foreground transition-colors hover:text-primary"
 								>
 									{link.label}
 								</a>
@@ -60,7 +60,7 @@
 			{/each}
 		</div>
 		<div
-			class="mt-12 flex flex-col items-start justify-between gap-4 border-t border-line-light pt-6 text-xs text-slate-500 sm:flex-row sm:items-center dark:border-line-dark"
+			class="mt-12 flex flex-col items-start justify-between gap-4 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center"
 		>
 			<p>© {new Date().getFullYear()} LinkShift. All rights reserved.</p>
 			<p class="font-mono">status: all systems routing normally</p>

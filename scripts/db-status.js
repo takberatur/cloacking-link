@@ -6,7 +6,7 @@ config();
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
-  throw new Error('DATABASE_URL is not set');
+	throw new Error('DATABASE_URL is not set');
 }
 
 const sql = neon(databaseUrl);
@@ -23,6 +23,7 @@ const tables = await sql.query(`
       'role',
       'permissions',
       'role_permissions',
+      'two_factor',
       'api_keys',
       'settings',
       '__drizzle_migrations'
@@ -31,12 +32,36 @@ const tables = await sql.query(`
 `);
 
 const columns = await sql.query(`
-  select table_name, column_name, data_type, udt_name
+  select table_name, column_name, data_type, udt_name, is_nullable
   from information_schema.columns
   where table_schema = 'public'
-    and table_name in ('user', 'session', 'account', 'role_permissions')
-    and column_name in ('id', 'user_id', 'role')
+    and table_name in ('user', 'session', 'account', 'role_permissions', 'two_factor')
+    and column_name in (
+      'id',
+      'user_id',
+      'role',
+      'username',
+      'display_username',
+      'banned',
+      'ban_reason',
+      'ban_expires',
+      'two_factor_enabled',
+      'two_factor_secret',
+      'secret',
+      'backup_codes',
+      'verified',
+      'failed_verification_count',
+      'locked_until'
+    )
   order by table_name, ordinal_position
+`);
+
+const userPasswordColumns = await sql.query(`
+  select table_name, column_name
+  from information_schema.columns
+  where table_schema = 'public'
+    and table_name = 'user'
+    and column_name = 'password'
 `);
 
 const migrations = await sql.query(`
@@ -61,4 +86,6 @@ const routines = await sql.query(`
     and routine_name = 'sync_user_role_rbac'
 `);
 
-console.log(JSON.stringify({ tables, columns, migrations, triggers, routines }, null, 2));
+console.log(
+	JSON.stringify({ tables, columns, userPasswordColumns, migrations, triggers, routines }, null, 2)
+);

@@ -48,19 +48,18 @@ declare global {
     href: string;
   }
   interface NavItem {
-    id: number;
     title: string;
     href: string;
-    icon?: Component<SVGAttributes<SVGSVGElement>, {}, string>;
+    icon?: Component<LucideProps, {}, ''>;
     isActive?: boolean;
+    items?: NavMenu[];
   }
   interface NavMenu {
-    id: number;
     title: string;
     url: string;
-    icon: Component<SVGAttributes<SVGSVGElement>, {}, string>;
+    icon?: Component<LucideProps, {}, ''>;
     isActive?: boolean;
-    navItem: NavItem[];
+    items?: NavMenu[];
   }
   type BreadcrumbItemType = BreadcrumbItem;
 
@@ -79,6 +78,11 @@ declare global {
     hours: number;
     minutes: number;
     seconds: number;
+  }
+  interface DayStat {
+    date: string;
+    in: number;
+    out: number;
   }
 }
 

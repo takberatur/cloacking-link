@@ -30,20 +30,6 @@ declare global {
     histatsId?: string; // Histats
   };
 
-  type SiteSetting = {
-    logo?: string;
-    favicon?: string;
-    primaryColor?: string;
-    secondaryColor?: string;
-    metaTitle?: string;
-    metaDescription?: string;
-    ogImage?: string;
-    ogTitle?: string;
-    ogDescription?: string;
-    keywords?: string;
-    [key: string]: any;
-  };
-
   type UserRole = typeof schema.userRoleEnum.enumValues[number];
   type UserStatus = typeof schema.userStatusEnum.enumValues[number];
 
@@ -255,6 +241,27 @@ declare global {
     order_by: 'desc'
   };
 
+  // =======================
+  // Setting Response
+  // =======================
+
+  type SiteSetting = {
+    site_name?: string;
+    site_tagline?: string;
+    site_logo?: string;
+    site_favicon?: string;
+    site_meta_title?: string;
+    site_meta_description?: string;
+    site_url?: string;
+    site_og_image?: string;
+    site_og_title?: string;
+    site_og_description?: string;
+    site_keywords?: string;
+    default_countdown_sec?: number;
+    guest_links_per_hour?: number;
+    enable_register?: boolean;
+    [key: string]: any;
+  };
 }
 
 export { };

@@ -1,12 +1,14 @@
-import { Resend, type CreateEmailResponseSuccess, type CreateEmailRequestOptions, type CreateEmailOptions } from 'resend';
-import { env } from '$env/dynamic/private';
+import { Resend, type CreateEmailOptions } from 'resend';
+import nodemailer from 'nodemailer';
+import { RESEND_API_KEY, SMTP_METHOD, SMTP_USER, SMTP_PASSWORD, SMTP_FROM_NAME, SMTP_FROM_EMAIL } from '$env/static/private';
 
 
-const resend = new Resend(env.RESEND_API_KEY);
-
+const resend = new Resend(RESEND_API_KEY);
 
 export async function sendEmail(payload: Partial<CreateEmailOptions>) {
-  if (env.RESEND_API_KEY) {
+  const method = SMTP_METHOD
+
+  if (method === 'resend' && RESEND_API_KEY) {
     try {
       if (!payload.to || !payload.subject || !payload.html) {
         throw new Error('Email payload is missing');
@@ -14,7 +16,7 @@ export async function sendEmail(payload: Partial<CreateEmailOptions>) {
 
 
       const { data, error } = await resend.emails.send({
-        from: `${env.SMTP_FROM_NAME} <${env.SMTP_FROM_EMAIL}>`,
+        from: `${SMTP_FROM_NAME} <${SMTP_FROM_EMAIL}>`,
         to: payload.to,
         subject: payload.subject,
         html: payload.html
@@ -25,7 +27,13 @@ export async function sendEmail(payload: Partial<CreateEmailOptions>) {
         throw error;
       }
 
-      return data;
+      return {
+        success: true,
+        message: 'Email sent successfully',
+        data: {
+          id: data.id
+        }
+      }
 
     } catch (err) {
       console.error('[email] Resend error', err);
@@ -33,5 +41,40 @@ export async function sendEmail(payload: Partial<CreateEmailOptions>) {
     }
   }
 
-  console.warn(`[email] Not configured — skipped "${payload.subject}" to ${payload.to}`);
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASSWORD,
+      },
+    });
+
+    transporter.verify((error, success) => {
+      if (error) {
+        throw error;
+      }
+      console.log('SMTP Server is ready to take messages', success);
+    });
+
+    const response = await transporter.sendMail({
+      from: `${SMTP_FROM_NAME} <${SMTP_FROM_EMAIL}>`,
+      to: payload.to,
+      replyTo: payload.replyTo || SMTP_FROM_EMAIL,
+      subject: payload.subject,
+      html: payload.html
+    });
+
+    return {
+      success: true,
+      message: 'Email sent successfully',
+      data: {
+        id: response.messageId
+      }
+    }
+
+  } catch (error) {
+    console.error('[email] Nodemailer error', error);
+    throw new Error(error instanceof Error ? error.message : 'Nodemailer error');
+  }
 }
