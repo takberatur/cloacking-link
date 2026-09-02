@@ -176,12 +176,13 @@ declare global {
     timestamp: number;
   }
 
+  type SortOrder = 'asc' | 'desc';
   interface QueryParams {
     page: number;
     limit: number;
     search?: string;
     sort_by?: string;
-    order_by?: 'asc' | 'desc';
+    order_by?: SortOrder;
     status?: string;
     include_deleted?: boolean;
     with_relations?: boolean;
@@ -191,8 +192,8 @@ declare global {
     user_id?: string;
     includes?: string[]; // e.g., ['user', 'category']
     fields?: string[]; // e.g., ['id', 'name', 'email']
-    date_from?: Date | string;
-    date_to?: Date | string;
+    date_from?: string;
+    date_to?: string;
     extra?: Record<string, any>;
   }
   interface DrizzleQueryOptions<TTable extends PgTable> {
@@ -203,17 +204,22 @@ declare global {
     deletedAtColumn?: PgColumn;
     customConditions?: (SQL | undefined)[];
   }
+
+  interface PaginationMeta {
+    current_page: number;
+    total_pages: number;
+    total_items: number;
+    has_next: boolean;
+    has_prev: boolean;
+    limit: number;
+  }
+
   interface PaginatedResult<T> {
     data: T[];
-    pagination: {
-      current_page: number;
-      total_pages: number;
-      total_items: number;
-      has_next: boolean;
-      has_prev: boolean;
-      limit: number;
-    };
+    pagination: PaginationMeta;
   }
+
+
   interface QueryState {
     page: number;
     limit: number;
@@ -229,9 +235,12 @@ declare global {
     defaults: T;
     validators?: Partial<Record<keyof T, (value: any) => any>>;
   }
+
+  type SearchFieldType = 'string' | 'number' | 'date' | 'boolean';
+
   interface SearchFieldConfig {
     field: string;
-    type: 'string' | 'number' | 'date' | 'boolean';
+    type: SearchFieldType;
     searchable?: boolean; // Default: true
   }
 
@@ -257,8 +266,6 @@ declare global {
     site_og_title?: string;
     site_og_description?: string;
     site_keywords?: string;
-    default_countdown_sec?: number;
-    guest_links_per_hour?: number;
     enable_register?: boolean;
     [key: string]: any;
   };

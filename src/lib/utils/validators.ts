@@ -112,16 +112,17 @@ export type TwoFactorInput = z.infer<typeof twoFactorSchema>;
 // ========================
 
 export const platformSettingsSchema = z.object({
+  site_name: z.string().min(1),
+  site_tagline: z.string().min(1),
   site_logo: z.string(),
   site_favicon: z.string(),
   site_meta_title: z.string(),
   site_meta_description: z.string(),
+  site_url: z.string().url().min(1),
   site_og_image: z.string(),
   site_og_title: z.string(),
   site_og_description: z.string(),
   site_keywords: z.string(),
-  default_countdown_sec: z.coerce.number().int().min(0).max(120),
-  guest_links_per_hour: z.coerce.number().int().min(1).max(100),
   enable_register: z.boolean().default(true),
 }).catchall(z.any());
 

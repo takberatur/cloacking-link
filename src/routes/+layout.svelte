@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { MetaTags, deepMerge } from 'svelte-meta-tags';
 	import './layout.css';
+	import { QueryClientProvider } from '@tanstack/svelte-query';
 	import { ModeWatcher } from 'mode-watcher';
 	import { ToastContent } from '@/components/extra/toast/index.js';
 	import { SvelteKitTopLoader } from 'sveltekit-top-loader';
@@ -16,6 +17,8 @@
 <ToastContent />
 <SvelteKitTopLoader color="#1447e6" />
 
-<main class="min-h-screen antialiased">
-	{@render children?.()}
-</main>
+<QueryClientProvider client={data.queryClient}>
+	<main class="min-h-screen antialiased">
+		{@render children?.()}
+	</main>
+</QueryClientProvider>

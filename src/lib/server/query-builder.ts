@@ -1,39 +1,29 @@
-import { SQL, and, or, ilike, gte, lte, eq, inArray, isNull, asc, desc, count } from 'drizzle-orm';
+import { SQL, and, or, ilike, gte, lte, eq, inArray, isNull, asc, desc } from 'drizzle-orm';
 import { PgTable, PgColumn } from 'drizzle-orm/pg-core';
 
-type QueryParams = {
-  search?: string;
-  date_from?: string;
-  date_to?: string;
-  include_deleted?: boolean;
-  extra?: Record<string, unknown>;
-  order_by?: 'asc' | 'desc' | string;
-  sort_by?: string;
-  page?: number | string;
-  limit?: number | string;
-};
-
-type DrizzleQueryOptions<T extends PgTable> = {
+export type DrizzleQueryOptions<T extends PgTable> = {
   table: T;
   searchColumns?: PgColumn[];
   dateColumn?: PgColumn;
   deletedAtColumn?: PgColumn;
   customConditions?: SQL[];
   defaultSortColumn?: PgColumn;
+  /**
+   * Whitelist of `extra`/`sort_by` keys allowed to touch the table. When
+   * omitted, any key that happens to match a property on `table` is used —
+   * fine for trusted internal callers, but set this whenever `params`
+   * comes straight from client query params.
+   */
+  allowedFields?: string[];
 };
 
-type PaginatedResult<T> = {
-  data: T[];
-  pagination: {
-    current_page: number;
-    total_pages: number;
-    total_items: number;
-    has_next: boolean;
-    has_prev: boolean;
-    limit: number;
-  };
-};
-
+/**
+ * One-shot, declarative counterpart to `QueryHelper`. Good fit for simple
+ * list endpoints where you just want to hand it `QueryParams` + table
+ * options and get a WHERE/ORDER BY/pagination triple back — no chaining
+ * needed. For endpoints with conditional filters (e.g. "add this condition
+ * only if the user has role X"), prefer `QueryHelper`'s fluent builder.
+ */
 export class DrizzleQueryBuilder {
   /**
    * Build WHERE clause berbentuk SQL Expression Drizzle
@@ -42,7 +32,7 @@ export class DrizzleQueryBuilder {
     params: QueryParams,
     options: DrizzleQueryOptions<T>
   ): SQL | undefined {
-    const { table, searchColumns, dateColumn, deletedAtColumn, customConditions } = options;
+    const { table, searchColumns, dateColumn, deletedAtColumn, customConditions, allowedFields } = options;
     const conditions: (SQL | undefined)[] = [];
 
     // 1. Search functionality (ILIKE multi-column)
@@ -78,6 +68,8 @@ export class DrizzleQueryBuilder {
     // 4. Dynamic Extra Filters (key dinamis dipetakan ke kolom tabel)
     if (params.extra && typeof params.extra === 'object') {
       Object.entries(params.extra).forEach(([key, value]) => {
+        if (allowedFields && !allowedFields.includes(key)) return;
+
         const col = (table as any)[key] as PgColumn;
         if (col && value !== undefined && value !== null && value !== '') {
           if (Array.isArray(value)) {
@@ -110,12 +102,12 @@ export class DrizzleQueryBuilder {
     params: QueryParams,
     options: DrizzleQueryOptions<T>
   ): SQL | undefined {
-    const { table, defaultSortColumn } = options;
+    const { table, defaultSortColumn, allowedFields } = options;
     const isAsc = params.order_by === 'asc';
     const sortKey = params.sort_by;
 
-    // Jika user passing sort_by yang valid ada di kolom tabel
-    if (sortKey && (table as any)[sortKey]) {
+    // Jika user passing sort_by yang valid ada di kolom tabel dan (jika diset) ada di whitelist
+    if (sortKey && (!allowedFields || allowedFields.includes(sortKey)) && (table as any)[sortKey]) {
       const col = (table as any)[sortKey] as PgColumn;
       return isAsc ? asc(col) : desc(col);
     }
@@ -154,7 +146,7 @@ export class DrizzleQueryBuilder {
     page: number,
     limit: number
   ): PaginatedResult<T> {
-    const totalPages = Math.ceil(totalCount / limit);
+    const totalPages = Math.max(1, Math.ceil(totalCount / limit));
 
     return {
       data,

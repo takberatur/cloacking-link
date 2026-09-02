@@ -17,8 +17,6 @@ const DEFAULTS: PlatformSettingsInput = {
   site_og_description: 'Cloak and rotate links across multiple destinations, block unwanted traffic by IP, domain, or device, and control every redirect — free.',
   site_url: PUBLIC_SITE_URL || "http://localhost:5000",
   site_keywords: 'link cloaking, link rotation, link protection, link privacy, link security',
-  default_countdown_sec: 0,
-  guest_links_per_hour: 0,
   enable_register: false,
 }
 export class SettingService extends ServerBase {
@@ -28,7 +26,7 @@ export class SettingService extends ServerBase {
   async getSetting(key: string) {
     return await this.event.locals.db?.query.settings.findFirst({ where: eq(settings.key, key) });
   }
-  async updateSettings(body: PlatformSettingsInput) {
+  async updateSettings(body: PlatformSettingsInput): Promise<void | Error> {
     try {
       if (!this.event.locals.db) {
         throw new Error('Database instance is not initialized');
@@ -76,6 +74,8 @@ export class SettingService extends ServerBase {
     const rawEnableRegister = map.get('enable_register');
     const initial: PlatformSettingsInput = {
       site_name: typeof map.get('site_name') === 'string' ? (map.get('site_name') as string) : DEFAULTS.site_name,
+      site_tagline: typeof map.get('site_tagline') === 'string' ? (map.get('site_tagline') as string) : DEFAULTS.site_tagline,
+      site_url: typeof map.get('site_url') === 'string' ? (map.get('site_url') as string) : DEFAULTS.site_url,
       site_logo: typeof map.get('site_logo') === 'string' ? (map.get('site_logo') as string) : DEFAULTS.site_logo,
       site_favicon: typeof map.get('site_favicon') === 'string' ? (map.get('site_favicon') as string) : DEFAULTS.site_favicon,
       site_meta_title: typeof map.get('site_meta_title') === 'string' ? (map.get('site_meta_title') as string) : DEFAULTS.site_meta_title,
@@ -84,14 +84,6 @@ export class SettingService extends ServerBase {
       site_og_title: typeof map.get('site_og_title') === 'string' ? (map.get('site_og_title') as string) : DEFAULTS.site_og_title,
       site_og_description: typeof map.get('site_og_description') === 'string' ? (map.get('site_og_description') as string) : DEFAULTS.site_og_description,
       site_keywords: typeof map.get('site_keywords') === 'string' ? (map.get('site_keywords') as string) : DEFAULTS.site_keywords,
-      default_countdown_sec:
-        typeof map.get('default_countdown_sec') === 'number'
-          ? (map.get('default_countdown_sec') as number)
-          : DEFAULTS.default_countdown_sec,
-      guest_links_per_hour:
-        typeof map.get('guest_links_per_hour') === 'number'
-          ? (map.get('guest_links_per_hour') as number)
-          : DEFAULTS.guest_links_per_hour,
       enable_register:
         typeof rawEnableRegister === 'boolean'
           ? rawEnableRegister
@@ -100,9 +92,6 @@ export class SettingService extends ServerBase {
             : rawEnableRegister === 'false'
               ? false
               : DEFAULTS.enable_register,
-      default_placements: Array.isArray(map.get('default_placements'))
-        ? (map.get('default_placements') as PlatformSettingsInput['default_placements'])
-        : DEFAULTS.default_placements
     };
 
     return initial;

@@ -17,8 +17,6 @@ const DEFAULTS: PlatformSettingsInput = {
   site_og_description: 'Cloak and rotate links across multiple destinations, block unwanted traffic by IP, domain, or device, and control every redirect — free.',
   site_url: "https://links-shift.vercel.app/",
   site_keywords: 'link cloaking, link rotation, link protection, link privacy, link security',
-  default_countdown_sec: 0,
-  guest_links_per_hour: 0,
   enable_register: false,
 }
 

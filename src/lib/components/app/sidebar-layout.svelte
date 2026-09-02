@@ -25,7 +25,7 @@
 			'max-[113rem]:peer-data-[variant=inset]:mr-2! min-[101rem]:peer-data-[variant=inset]:peer-data-[state=collapsed]:mr-auto!'
 		)}
 	>
-		<AppSidebarHeader {page} />
+		<AppSidebarHeader {page} {user} />
 		<div class="flex flex-1 flex-col gap-4 p-4 pt-0">
 			<div class="@container/main flex flex-1 flex-col gap-2">
 				<div class="flex flex-col gap-4 py-4 md:gap-6 md:py-6">

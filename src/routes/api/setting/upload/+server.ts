@@ -15,7 +15,7 @@ export const POST = async ({ request, locals }) => {
     }
 
     const formData = await request.formData();
-    const file = formData.get('avatar');
+    const file = formData.get('file');
     const key = formData.get('key')
     if (!key) {
       return json({

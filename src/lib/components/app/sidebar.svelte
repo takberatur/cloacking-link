@@ -20,8 +20,10 @@
 	const sidebar = useSidebar();
 	let isMobilePage = new IsMobile();
 
-	const navMenu = {
-		primary: [
+	const isSuperAdmin = $derived.by(() => user?.role === 'superadmin');
+
+	const navMain: NavMenu[] = [
+		...[
 			{
 				title: 'Dashboard',
 				url: '/app',
@@ -31,21 +33,26 @@
 				title: 'Links',
 				url: '/app/links',
 				icon: Link
-			},
-			{
-				title: 'Users',
-				url: '/app/users',
-				icon: UserRound
 			}
-		] as NavMenu[],
-		secondary: [
-			{
-				title: 'Settings',
-				url: '/app/settings',
-				icon: Settings
-			}
-		] as NavMenu[]
-	};
+		],
+		// svelte-ignore state_referenced_locally
+		...(isSuperAdmin
+			? [
+					{
+						title: 'Users',
+						url: '/app/users',
+						icon: UserRound
+					}
+				]
+			: [])
+	];
+	const navSecondary: NavMenu[] = [
+		{
+			title: 'Settings',
+			url: '/app/settings',
+			icon: Settings
+		}
+	];
 </script>
 
 <Sidebar.Root bind:ref collapsible="icon" {...restProps}>
@@ -84,9 +91,11 @@
 			</Sidebar.Menu>
 		</Sidebar.Header>
 		<Sidebar.Content class="scrollbar-primary overflow-y-auto">
-			<AppNavMain items={navMenu.primary} />
-			<Sidebar.Separator />
-			<AppNavMain items={navMenu.secondary} />
+			<AppNavMain items={navMain} />
+			{#if isSuperAdmin}
+				<Sidebar.Separator />
+				<AppNavMain items={navSecondary} />
+			{/if}
 		</Sidebar.Content>
 		<Sidebar.Footer>
 			<AppNavUser {user} />

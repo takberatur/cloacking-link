@@ -21,7 +21,6 @@
 			selectedChildIndex = null;
 		}
 	};
-
 </script>
 
 <Sidebar.Group>
@@ -32,22 +31,14 @@
 					<Sidebar.MenuButton
 						tooltipContent={item.title}
 						onclick={() => toggleCollapse(index)}
-						class={item.url === page.url.pathname ? 'bg-accent' : ''}
+						class={item.url === page.url.pathname ? 'bg-primary hover:bg-primary/80' : ''}
 					>
 						{#snippet child({ props })}
 							<a {...props} href={item.url}>
 								{#if item.icon}
-									<item.icon
-										class={item.url === page.url.pathname
-											? 'font-bold text-primary'
-											: ''}
-									/>
+									<item.icon class={item.url === page.url.pathname ? 'font-bold text-white' : ''} />
 								{/if}
-								<span
-									class={item.url === page.url.pathname
-										? 'font-bold text-primary'
-										: ''}
-								>
+								<span class={item.url === page.url.pathname ? 'font-bold text-white' : ''}>
 									{item.title}
 								</span>
 								{#if item.items?.length}

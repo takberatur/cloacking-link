@@ -24,7 +24,8 @@
 	},
 	"dependencies": {
 		"@tanstack/svelte-query": "^6.1.48",
-		"@tanstack/svelte-table": "^9.2.4"
+		"@tanstack/svelte-table": "^9.2.4",
+		"svelte-lexical": "^0.6.5"
 	},
 	"devDependencies": {
 		"@emoji-mart/data": "^1.2.1",

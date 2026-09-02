@@ -4,32 +4,18 @@
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Button } from '../ui/button';
-	import { EllipsisVertical, Settings, LogOut, UserIcon, Lock } from '@lucide/svelte';
+	import { authClient } from '@/client/auth.js';
+	import { EllipsisVertical, LogOut, UserIcon, Lock } from '@lucide/svelte';
 
 	let { user }: { user?: User | null } = $props();
 	const sidebar = Sidebar.useSidebar();
 
 	async function logout() {
-		try {
-			const response = await fetch('/api/user/logout', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			});
-			if (!response.ok) {
-				throw new Error('Logout failed');
-			}
-			const redirectTarget = `${window.location.pathname}${window.location.search}`;
-			const signInHref = `/signin?redirect=${encodeURIComponent(redirectTarget)}`;
-
-			// Use a full navigation so auth pages mount fresh after tearing down the app shell.
-			window.location.assign(signInHref);
-		} catch (error) {
-			console.error('Logout failed:', error);
-		}
+		await authClient.signOut();
+		const redirectTarget = `${window.location.pathname}${window.location.search}`;
+		const signInHref = `/signin?redirect=${encodeURIComponent(redirectTarget)}`;
+		window.location.assign(signInHref);
 	}
-
 </script>
 
 <Sidebar.Menu>
@@ -42,10 +28,10 @@
 						size="lg"
 						class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
 					>
-						<Avatar.Root class="size-8 rounded-lg grayscale-25">
+						<Avatar.Root class="size-8 rounded-lg bg-primary">
 							<Avatar.Image src={user?.image || ''} alt={user?.name} />
-							<Avatar.Fallback class="rounded-lg">
-								{user?.name?.slice(0, 2).toUpperCase() || "CN"}
+							<Avatar.Fallback class="rounded-lg text-white">
+								{user?.name?.slice(0, 2).toUpperCase() || 'CN'}
 							</Avatar.Fallback>
 						</Avatar.Root>
 						<div class="grid flex-1 text-left text-sm leading-tight">
@@ -69,7 +55,7 @@
 						<Avatar.Root class="size-8 rounded-lg">
 							<Avatar.Image src={user?.image || ''} alt={user?.name} />
 							<Avatar.Fallback class="rounded-lg">
-								{user?.name?.slice(0, 2).toUpperCase() || "CN"}
+								{user?.name?.slice(0, 2).toUpperCase() || 'CN'}
 							</Avatar.Fallback>
 						</Avatar.Root>
 						<div class="grid flex-1 text-left text-sm leading-tight">
@@ -82,12 +68,12 @@
 				</DropdownMenu.Label>
 				<DropdownMenu.Separator />
 				<DropdownMenu.Group>
-					<DropdownMenu.Item class="w-full" onSelect={() => goto('/app/profile')}>
-						<UserIcon />
+					<DropdownMenu.Item class="w-full text-sm" onSelect={() => goto('/app/profile')}>
+						<UserIcon class="size-4" />
 						Profile
 					</DropdownMenu.Item>
-					<DropdownMenu.Item class="w-full" onSelect={() => goto('/app/profile/password')}>
-						<Lock />
+					<DropdownMenu.Item class="w-full text-sm" onSelect={() => goto('/app/profile/password')}>
+						<Lock class="size-4" />
 						Password & Security
 					</DropdownMenu.Item>
 				</DropdownMenu.Group>
@@ -101,7 +87,7 @@
 							class="w-full text-sm text-red-600 dark:text-red-500"
 							onclick={logout}
 						>
-							<LogOut />
+							<LogOut class="size-4" />
 							Logout
 						</Button>
 					{/snippet}
