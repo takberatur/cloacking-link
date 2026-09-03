@@ -26,6 +26,15 @@ const tables = await sql.query(`
       'two_factor',
       'api_keys',
       'settings',
+	  'campaigns',
+	  'destinations',
+	  'destination_geo_targets',
+	  'destination_deep_links',
+	  'block_rules',
+	  'visitors',
+	  'click_events',
+	  'safelink_pages',
+	  'popunder_settings',
       '__drizzle_migrations'
     )
   order by table_schema, table_name
@@ -86,6 +95,54 @@ const routines = await sql.query(`
     and routine_name = 'sync_user_role_rbac'
 `);
 
+const domainForeignKeys = await sql.query(`
+  select tc.table_name, tc.constraint_name
+  from information_schema.table_constraints tc
+  where tc.table_schema = 'public'
+    and tc.constraint_type = 'FOREIGN KEY'
+    and tc.table_name in (
+      'campaigns',
+      'destinations',
+      'destination_geo_targets',
+      'destination_deep_links',
+      'block_rules',
+      'visitors',
+      'click_events',
+      'safelink_pages',
+      'popunder_settings'
+    )
+  order by tc.table_name, tc.constraint_name
+`);
+
+const domainPermissions = await sql.query(`
+  select code
+  from permissions
+  where code in (
+    'campaign:read',
+    'campaign:create',
+    'campaign:update',
+    'campaign:delete',
+    'analytics:read',
+    'rules:manage',
+    'safelink:manage',
+    'api-key:manage'
+  )
+  order by code
+`);
+
 console.log(
-	JSON.stringify({ tables, columns, userPasswordColumns, migrations, triggers, routines }, null, 2)
+	JSON.stringify(
+		{
+			tables,
+			columns,
+			userPasswordColumns,
+			migrations,
+			triggers,
+			routines,
+			domainForeignKeys,
+			domainPermissions
+		},
+		null,
+		2
+	)
 );

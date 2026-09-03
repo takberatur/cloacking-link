@@ -6,6 +6,7 @@
 	import { ModeWatcher } from 'mode-watcher';
 	import { ToastContent } from '@/components/extra/toast/index.js';
 	import { SvelteKitTopLoader } from 'sveltekit-top-loader';
+	import { AppGlobalAlertDialog } from '@/components/extra/index.js';
 
 	let { data, children } = $props();
 
@@ -19,6 +20,7 @@
 
 <QueryClientProvider client={data.queryClient}>
 	<main class="min-h-screen antialiased">
+		<AppGlobalAlertDialog />
 		{@render children?.()}
 	</main>
 </QueryClientProvider>

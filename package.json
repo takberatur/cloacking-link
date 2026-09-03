@@ -20,7 +20,8 @@
 		"db:mark-baseline": "node scripts/db-mark-baseline.js",
 		"db:studio": "drizzle-kit studio",
 		"auth:schema": "auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes",
-		"db:seed": "tsx src/lib/server/db/seed.ts"
+		"db:seed": "tsx src/lib/server/db/seed.ts",
+		"db:smoke:campaign": "tsx scripts/db-smoke-campaign.ts"
 	},
 	"dependencies": {
 		"@tanstack/svelte-query": "^6.1.48",

@@ -269,6 +269,71 @@ declare global {
     enable_register?: boolean;
     [key: string]: any;
   };
+  // =======================
+  // Campaign Types
+  // =======================
+
+  type CampaignPlatform =
+    // E-commerce Global
+    | 'amazon' | 'ebay' | 'aliexpress' | 'walmart' | 'etsy' | 'shopify' | 'bigcommerce'
+    // E-commerce Asia
+    | 'shopee' | 'lazada' | 'tokopedia' | 'bukalapak' | 'blibli' | 'tiktok' | 'temu' | 'shein'
+    | 'jd' | 'taobao' | 'tmall' | 'pinduoduo' | 'coupang' | 'rakuten' | 'qoo10' | 'zilingo'
+    // E-commerce Indonesia Lokal
+    | 'tokopedia' | 'bukalapak' | 'blibli' | 'shopee' | 'lazada' | 'jd_id' | 'zalora'
+    | 'sociolla' | 'orami' | 'ruparupa' | 'klikindomaret' | 'happyfresh' | 'sayurbox'
+    // Travel & Hospitality
+    | 'traveloka' | 'tiket' | 'agoda' | 'booking' | 'expedia' | 'airbnb' | 'trivago'
+    | 'kayak' | 'skyscanner' | 'hotels' | 'tripadvisor' | 'pegipegi'
+    // Digital Services & Streaming
+    | 'spotify' | 'netflix' | 'disney' | 'youtube' | 'twitch' | 'vimeo' | 'apple_music'
+    | 'amazon_prime' | 'hbo' | 'paramount'
+    // Finance & Fintech
+    | 'gojek' | 'grab' | 'ovo' | 'dana' | 'linkaja' | 'shopee_pay' | 'gopay'
+    | 'paypal' | 'stripe' | 'paytm' | 'alipay' | 'wechat_pay'
+    // E-commerce & Marketplace Lainnya
+    | 'carousell' | 'olx' | 'mataharimall' | 'fabelio' | 'ishop' | 'matahari'
+    | 'ace_hardware' | 'informa' | 'sofa' | 'h&m' | 'zara' | 'uniqlo' | 'zalora'
+    // Gaming & Entertainment
+    | 'steam' | 'epic_games' | 'playstation' | 'xbox' | 'nintendo' | 'mobile_legends'
+    | 'freefire' | 'pubg' | 'valorant' | 'genshin_impact'
+    // Health & Beauty
+    | 'sociolla' | 'beautynesia' | 'makeover' | 'wardah' | 'mustika_ratu' | 'safi'
+    | 'loreal' | 'watsons' | 'guardian'
+    // Food & Delivery
+    | 'gofood' | 'grabfood' | 'shopee_food' | 'deliveroo' | 'ubereats' | 'doordash'
+    | 'zomato' | 'swiggy' | 'foodpanda'
+    | 'custom';
+
+  type OfferType =
+    | 'affiliate'
+    | 'cpa'
+    | 'direct'
+    | 'popunder'
+    | 'cpl'
+    | 'cps'
+    | 'cpc'
+    | 'cpm'
+    | 'lead_generation'
+    | 'incentive'
+    | 'survey'
+    | 'app_install'
+    | 'subscription'
+    | 'cashback';
+
+
+  interface CampaignPlatformData {
+    value: string;
+    label: string;
+    category: 'ecommerce' | 'marketplace' | 'travel' | 'digital' | 'fintech' | 'gaming' | 'beauty' | 'food' | 'fashion' | 'general';
+    region: 'global' | 'asia' | 'indonesia' | 'europe' | 'america';
+    icon?: string;
+    color?: string;
+    isIndonesian?: boolean;
+    affiliateNetwork?: string;
+    commissionRange?: string;
+    cookieDuration?: string;
+  }
 }
 
 export { };

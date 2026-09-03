@@ -70,11 +70,7 @@
 				<DropdownMenu.Group>
 					<DropdownMenu.Item class="w-full text-sm" onSelect={() => goto('/app/profile')}>
 						<UserIcon class="size-4" />
-						Profile
-					</DropdownMenu.Item>
-					<DropdownMenu.Item class="w-full text-sm" onSelect={() => goto('/app/profile/password')}>
-						<Lock class="size-4" />
-						Password & Security
+						Account & Security
 					</DropdownMenu.Item>
 				</DropdownMenu.Group>
 				<DropdownMenu.Separator />

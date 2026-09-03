@@ -4,7 +4,7 @@ export const load = async ({ locals }) => {
   const { user, session, setting } = locals;
 
   const pageMetaTags = definePageMetaTags({
-    title: 'Dashboard',
+    title: 'Account & Security',
     robots: 'noindex, nofollow'
   });
 

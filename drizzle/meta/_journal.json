@@ -8,6 +8,13 @@
       "when": 1788294484894,
       "tag": "0000_magenta_roughhouse",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788461347847,
+      "tag": "0001_outstanding_moonstone",
+      "breakpoints": true
     }
   ]
 }
