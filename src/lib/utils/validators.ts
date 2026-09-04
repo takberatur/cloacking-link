@@ -176,7 +176,7 @@ export const campaignDestinationSchema = z
 				z
 					.string()
 					.trim()
-					.length(2)
+					.regex(/^[a-zA-Z]{2}$/, 'Use ISO two-letter country codes')
 					.transform((value) => value.toUpperCase())
 			)
 			.max(250)

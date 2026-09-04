@@ -4,9 +4,18 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
-	import { EyeIcon, PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from '@lucide/svelte';
+	import {
+		CheckIcon,
+		CopyIcon,
+		EyeIcon,
+		PencilIcon,
+		PlusIcon,
+		SearchIcon,
+		Trash2Icon
+	} from '@lucide/svelte';
 
 	let { data, form } = $props();
+	let copiedCampaignId = $state<string | null>(null);
 
 	const dateFormatter = new Intl.DateTimeFormat('en', {
 		day: '2-digit',
@@ -30,6 +39,14 @@
 		if (status === 'paused') return 'secondary';
 		if (status === 'archived') return 'outline';
 		return 'ghost';
+	}
+
+	async function copyPublicUrl(campaignId: string, slug: string) {
+		await navigator.clipboard.writeText(`${data.publicBaseUrl}/r/${slug}`);
+		copiedCampaignId = campaignId;
+		setTimeout(() => {
+			if (copiedCampaignId === campaignId) copiedCampaignId = null;
+		}, 1600);
 	}
 </script>
 
@@ -123,7 +140,7 @@
 								<a href="/app/links/{campaign.id}" class="font-medium hover:underline"
 									>{campaign.name}</a
 								>
-								<p class="mt-0.5 font-mono text-xs text-muted-foreground">/{campaign.slug}</p>
+								<p class="mt-0.5 font-mono text-xs text-muted-foreground">/r/{campaign.slug}</p>
 							</Table.Cell>
 							<Table.Cell
 								><Badge variant={statusVariant(campaign.status)}>{campaign.status}</Badge
@@ -139,6 +156,16 @@
 							>
 							<Table.Cell>
 								<div class="flex justify-end gap-1">
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										aria-label="Copy public URL"
+										title={copiedCampaignId === campaign.id ? 'Copied' : 'Copy public URL'}
+										onclick={() => copyPublicUrl(campaign.id, campaign.slug)}
+										>{#if copiedCampaignId === campaign.id}<CheckIcon />{:else}<CopyIcon
+											/>{/if}</Button
+									>
 									<Button
 										href="/app/links/{campaign.id}"
 										variant="ghost"

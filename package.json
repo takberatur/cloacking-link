@@ -21,7 +21,9 @@
 		"db:studio": "drizzle-kit studio",
 		"auth:schema": "auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes",
 		"db:seed": "tsx src/lib/server/db/seed.ts",
-		"db:smoke:campaign": "tsx scripts/db-smoke-campaign.ts"
+		"db:smoke:campaign": "tsx scripts/db-smoke-campaign.ts",
+		"db:smoke:redirect": "tsx scripts/db-smoke-redirect.ts",
+		"test:redirect": "tsx scripts/test-redirect-engine.ts"
 	},
 	"dependencies": {
 		"@tanstack/svelte-query": "^6.1.48",

@@ -91,10 +91,12 @@ export async function listCampaigns(ownerId: string, filters: CampaignListFilter
 		);
 	}
 	if (filters.from && /^\d{4}-\d{2}-\d{2}$/.test(filters.from)) {
-		conditions.push(gte(campaigns.createdAt, new Date(`${filters.from}T00:00:00.000Z`)));
+		const fromDate = new Date(`${filters.from}T00:00:00.000Z`);
+		if (!Number.isNaN(fromDate.getTime())) conditions.push(gte(campaigns.createdAt, fromDate));
 	}
 	if (filters.to && /^\d{4}-\d{2}-\d{2}$/.test(filters.to)) {
-		conditions.push(lte(campaigns.createdAt, new Date(`${filters.to}T23:59:59.999Z`)));
+		const toDate = new Date(`${filters.to}T23:59:59.999Z`);
+		if (!Number.isNaN(toDate.getTime())) conditions.push(lte(campaigns.createdAt, toDate));
 	}
 
 	const where = and(...conditions);
@@ -193,10 +195,12 @@ export async function createCampaign(ownerId: string, input: CampaignInput) {
 		geoMode: destination.geoMode
 	}));
 	const geoRows = destinationRows.flatMap((destination, index) =>
-		input.destinations[index].countries.map((countryCode) => ({
-			destinationId: destination.id,
-			countryCode
-		}))
+		input.destinations[index].geoMode === 'all'
+			? []
+			: input.destinations[index].countries.map((countryCode) => ({
+					destinationId: destination.id,
+					countryCode
+				}))
 	);
 
 	const statements: BatchItem<'pg'>[] = [
@@ -268,7 +272,7 @@ export async function updateCampaign(ownerId: string, campaignId: string, input:
 			statements.push(db.insert(destinations).values({ id: destinationId, ...values }));
 		}
 
-		if (destination.countries.length > 0) {
+		if (destination.geoMode !== 'all' && destination.countries.length > 0) {
 			statements.push(
 				db
 					.insert(destinationGeoTargets)
@@ -294,6 +298,22 @@ export async function setCampaignStatus(
 	campaignId: string,
 	status: 'active' | 'paused'
 ) {
+	if (status === 'active') {
+		const eligibleDestination = await db
+			.select({ id: destinations.id })
+			.from(destinations)
+			.innerJoin(campaigns, eq(campaigns.id, destinations.campaignId))
+			.where(
+				and(
+					eq(campaigns.id, campaignId),
+					eq(campaigns.ownerId, ownerId),
+					eq(destinations.enabled, true)
+				)
+			)
+			.limit(1);
+		if (eligibleDestination.length === 0) return false;
+	}
+
 	const updated = await db
 		.update(campaigns)
 		.set({ status, updatedAt: new Date() })

@@ -18,6 +18,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		user: locals.user,
 		session: locals.session,
 		setting: locals.setting,
+		publicBaseUrl: url.origin.replace(/\/$/, ''),
 		filters,
 		campaigns: await listCampaigns(locals.user.id, filters)
 	};
@@ -47,7 +48,9 @@ export const actions: Actions = {
 			campaignId,
 			status as 'active' | 'paused'
 		);
-		if (!updated) return fail(404, { error: 'Campaign not found' });
+		if (!updated) {
+			return fail(400, { error: 'Campaign not found or has no enabled destination' });
+		}
 		return { success: true, message: `Campaign ${status}` };
 	}
 };

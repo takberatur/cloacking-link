@@ -11,6 +11,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		user: locals.user,
 		session: locals.session,
 		setting: locals.setting,
+		publicUrl: `${url.origin.replace(/\/$/, '')}/r/${campaign.slug}`,
 		campaign,
 		created: url.searchParams.get('created') === '1',
 		updated: url.searchParams.get('updated') === '1'
@@ -34,7 +35,9 @@ export const actions: Actions = {
 			params.id,
 			status as 'active' | 'paused'
 		);
-		if (!updated) return fail(404, { error: 'Campaign not found' });
+		if (!updated) {
+			return fail(400, { error: 'Campaign not found or has no enabled destination' });
+		}
 		return { success: true };
 	}
 };

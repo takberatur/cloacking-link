@@ -40,7 +40,9 @@ const initServer: Handle = async ({ event, resolve }) => {
 	event.locals.db = db;
 	event.locals.helper = new ServiceHelper(event);
 
-	event.locals.setting = await event.locals.helper.setting.getSettings();
+	if (!event.url.pathname.startsWith('/r/') && !event.url.pathname.startsWith('/s/')) {
+		event.locals.setting = await event.locals.helper.setting.getSettings();
+	}
 
 	return resolve(event);
 };
@@ -53,6 +55,9 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 
 	if (matchesRoutePrefix(pathname, '/api/auth')) {
 		return auth.handler(request);
+	}
+	if (matchesRoutePrefix(pathname, '/r') || matchesRoutePrefix(pathname, '/s')) {
+		return resolve(event);
 	}
 
 	const isApiRoute = matchesRoutePrefix(pathname, '/api');

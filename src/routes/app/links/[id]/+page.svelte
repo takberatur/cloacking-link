@@ -5,6 +5,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import {
 		ArrowLeftIcon,
+		CheckIcon,
+		CopyIcon,
 		ExternalLinkIcon,
 		PencilIcon,
 		PowerIcon,
@@ -12,11 +14,18 @@
 	} from '@lucide/svelte';
 
 	let { data, form } = $props();
+	let copied = $state(false);
 
 	const dateFormatter = new Intl.DateTimeFormat('en', {
 		dateStyle: 'medium',
 		timeStyle: 'short'
 	});
+
+	async function copyPublicUrl() {
+		await navigator.clipboard.writeText(data.publicUrl);
+		copied = true;
+		setTimeout(() => (copied = false), 1600);
+	}
 </script>
 
 <AppSidebarLayout page={data.campaign.name} user={data.user} setting={data.setting}>
@@ -34,9 +43,20 @@
 						>{data.campaign.status}</Badge
 					>
 				</div>
-				<p class="mt-1 font-mono text-sm text-muted-foreground">/{data.campaign.slug}</p>
+				<a
+					href={data.publicUrl}
+					target="_blank"
+					rel="noreferrer"
+					class="mt-1 inline-flex items-center gap-1 font-mono text-sm text-muted-foreground hover:text-foreground"
+					>/r/{data.campaign.slug}<ExternalLinkIcon class="size-3" /></a
+				>
 			</div>
 			<div class="flex flex-wrap gap-2">
+				<Button type="button" variant="outline" onclick={copyPublicUrl}
+					>{#if copied}<CheckIcon data-icon="inline-start" /> Copied{:else}<CopyIcon
+							data-icon="inline-start"
+						/> Copy URL{/if}</Button
+				>
 				<form method="POST" action="?/toggleStatus" use:enhance>
 					<input
 						type="hidden"
