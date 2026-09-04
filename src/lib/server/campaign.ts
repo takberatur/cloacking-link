@@ -1,7 +1,13 @@
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm';
 import type { BatchItem } from 'drizzle-orm/batch';
 import { db } from './db';
-import { campaigns, destinationGeoTargets, destinations } from './db/schema';
+import {
+	campaigns,
+	destinationDeepLinks,
+	destinationGeoTargets,
+	destinations,
+	popunderSettings
+} from './db/schema';
 import { campaignSchema, type CampaignInput } from '$lib/utils/validators';
 import { generateSlug } from '$lib/utils/slug';
 
@@ -36,6 +42,15 @@ export function parseCampaignFormData(formData: FormData) {
 	const geoModes = formData.getAll('destinationGeoMode');
 	const countries = formData.getAll('destinationCountries');
 	const enabledIndexes = new Set(formData.getAll('destinationEnabled').map(String));
+	const deepLinkEnabledIndexes = new Set(formData.getAll('destinationDeepLinkEnabled').map(String));
+	const androidSchemes = formData.getAll('destinationAndroidScheme');
+	const androidPackages = formData.getAll('destinationAndroidPackageName');
+	const androidStoreUrls = formData.getAll('destinationAndroidStoreUrl');
+	const iosSchemes = formData.getAll('destinationIosScheme');
+	const iosAppIds = formData.getAll('destinationIosAppId');
+	const iosStoreUrls = formData.getAll('destinationIosStoreUrl');
+	const universalLinks = formData.getAll('destinationUniversalLink');
+	const webFallbackUrls = formData.getAll('destinationWebFallbackUrl');
 
 	return campaignSchema.safeParse({
 		name: stringValue(formData, 'name'),
@@ -49,6 +64,19 @@ export function parseCampaignFormData(formData: FormData) {
 		trackingEnabled: booleanValue(formData, 'trackingEnabled'),
 		preserveQueryParams: booleanValue(formData, 'preserveQueryParams'),
 		stripReferrer: booleanValue(formData, 'stripReferrer'),
+		popunder: {
+			enabled: booleanValue(formData, 'popunderEnabled'),
+			targetUrl: stringValue(formData, 'popunderTargetUrl'),
+			behavior: stringValue(formData, 'popunderBehavior'),
+			delayMs: stringValue(formData, 'popunderDelayMs'),
+			frequencyCap: stringValue(formData, 'popunderFrequencyCap'),
+			frequencyWindowHours: stringValue(formData, 'popunderFrequencyWindowHours'),
+			browserRules: {
+				desktop: stringValue(formData, 'popunderDesktopBehavior'),
+				mobile: stringValue(formData, 'popunderMobileBehavior'),
+				webview: stringValue(formData, 'popunderWebviewBehavior')
+			}
+		},
 		destinations: names.map((name, index) => ({
 			id: String(ids[index] ?? '') || undefined,
 			name: String(name),
@@ -59,6 +87,17 @@ export function parseCampaignFormData(formData: FormData) {
 			weight: String(weights[index] ?? '100'),
 			priority: String(priorities[index] ?? '0'),
 			geoMode: String(geoModes[index] ?? 'all'),
+			deepLink: {
+				enabled: deepLinkEnabledIndexes.has(String(index)),
+				androidScheme: String(androidSchemes[index] ?? ''),
+				androidPackageName: String(androidPackages[index] ?? ''),
+				androidStoreUrl: String(androidStoreUrls[index] ?? ''),
+				iosScheme: String(iosSchemes[index] ?? ''),
+				iosAppId: String(iosAppIds[index] ?? ''),
+				iosStoreUrl: String(iosStoreUrls[index] ?? ''),
+				universalLink: String(universalLinks[index] ?? ''),
+				webFallbackUrl: String(webFallbackUrls[index] ?? '')
+			},
 			countries: [
 				...new Set(
 					String(countries[index] ?? '')
@@ -202,6 +241,12 @@ export async function createCampaign(ownerId: string, input: CampaignInput) {
 					countryCode
 				}))
 	);
+	const deepLinkRows = destinationRows.flatMap((destination, index) => {
+		const deepLink = input.destinations[index].deepLink;
+		if (!deepLink.enabled) return [];
+		const { enabled: _enabled, ...values } = deepLink;
+		return [{ destinationId: destination.id, ...values }];
+	});
 
 	const statements: BatchItem<'pg'>[] = [
 		db.insert(campaigns).values({
@@ -211,6 +256,23 @@ export async function createCampaign(ownerId: string, input: CampaignInput) {
 		db.insert(destinations).values(destinationRows)
 	];
 	if (geoRows.length > 0) statements.push(db.insert(destinationGeoTargets).values(geoRows));
+	if (deepLinkRows.length > 0) {
+		statements.push(db.insert(destinationDeepLinks).values(deepLinkRows));
+	}
+	if (input.popunder.enabled && input.popunder.targetUrl) {
+		statements.push(
+			db.insert(popunderSettings).values({
+				campaignId,
+				enabled: true,
+				targetUrl: input.popunder.targetUrl,
+				behavior: input.popunder.behavior,
+				delayMs: input.popunder.delayMs,
+				frequencyCap: input.popunder.frequencyCap,
+				frequencyWindowHours: input.popunder.frequencyWindowHours,
+				browserRules: input.popunder.browserRules
+			})
+		);
+	}
 
 	await db.batch(statements as [BatchItem<'pg'>, ...BatchItem<'pg'>[]]);
 	return { id: campaignId, slug };
@@ -237,6 +299,28 @@ export async function updateCampaign(ownerId: string, campaignId: string, input:
 
 	if (removedIds.length > 0) {
 		statements.push(db.delete(destinations).where(inArray(destinations.id, removedIds)));
+	}
+
+	if (input.popunder.enabled && input.popunder.targetUrl) {
+		const popunderValues = {
+			campaignId,
+			enabled: true,
+			targetUrl: input.popunder.targetUrl,
+			behavior: input.popunder.behavior,
+			delayMs: input.popunder.delayMs,
+			frequencyCap: input.popunder.frequencyCap,
+			frequencyWindowHours: input.popunder.frequencyWindowHours,
+			browserRules: input.popunder.browserRules,
+			updatedAt: new Date()
+		};
+		statements.push(
+			db.insert(popunderSettings).values(popunderValues).onConflictDoUpdate({
+				target: popunderSettings.campaignId,
+				set: popunderValues
+			})
+		);
+	} else if (existing.popunderSetting) {
+		statements.push(db.delete(popunderSettings).where(eq(popunderSettings.campaignId, campaignId)));
 	}
 
 	input.destinations.forEach((destination, position) => {
@@ -277,6 +361,31 @@ export async function updateCampaign(ownerId: string, campaignId: string, input:
 				db
 					.insert(destinationGeoTargets)
 					.values(destination.countries.map((countryCode) => ({ destinationId, countryCode })))
+			);
+		}
+
+		const deepLinkValues = {
+			destinationId,
+			androidScheme: destination.deepLink.androidScheme ?? null,
+			androidPackageName: destination.deepLink.androidPackageName ?? null,
+			androidStoreUrl: destination.deepLink.androidStoreUrl ?? null,
+			iosScheme: destination.deepLink.iosScheme ?? null,
+			iosAppId: destination.deepLink.iosAppId ?? null,
+			iosStoreUrl: destination.deepLink.iosStoreUrl ?? null,
+			universalLink: destination.deepLink.universalLink ?? null,
+			webFallbackUrl: destination.deepLink.webFallbackUrl ?? null,
+			updatedAt: new Date()
+		};
+		if (destination.deepLink.enabled) {
+			statements.push(
+				db.insert(destinationDeepLinks).values(deepLinkValues).onConflictDoUpdate({
+					target: destinationDeepLinks.destinationId,
+					set: deepLinkValues
+				})
+			);
+		} else if (destination.id && currentIds.has(destination.id)) {
+			statements.push(
+				db.delete(destinationDeepLinks).where(eq(destinationDeepLinks.destinationId, destinationId))
 			);
 		}
 	});

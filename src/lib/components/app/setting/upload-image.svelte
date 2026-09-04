@@ -12,14 +12,13 @@
 	import { SvelteDate } from 'svelte/reactivity';
 	import { invalidateAll } from '$app/navigation';
 	import { onDestroy } from 'svelte';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
-	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import * as FileDropZone from '$lib/components/ui/file-drop-zone';
 	import { displaySize, MEGABYTE } from '$lib/components/ui/file-drop-zone';
 	import * as Empty from '$lib/components/ui/empty/index.js';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
-	import { Camera, XIcon } from '@lucide/svelte';
+	import { XIcon } from '@lucide/svelte';
 	import { toast } from '$lib/stores/toast';
 	import { sleep } from '$lib/utils/promise';
 

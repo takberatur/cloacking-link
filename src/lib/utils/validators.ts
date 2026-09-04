@@ -108,6 +108,39 @@ export type OtpVerificationInput = z.infer<typeof otpVerificationSchema>;
 export type TwoFactorInput = z.infer<typeof twoFactorSchema>;
 
 // ========================
+// Account & Security
+// ========================
+export const updateProfileSchema = z.object({
+	name: z.string().min(1),
+	username: z.string().min(1),
+	email: z.string().email('Invalid email').min(1),
+	phone: z.string().optional()
+});
+export const changePasswordSchema = z
+	.object({
+		currentPassword: z.string().min(1),
+		newPassword: z.string().min(1),
+		confirmPassword: z.string().min(1)
+	})
+	.superRefine((data, ctx) => {
+		if (data.newPassword !== data.confirmPassword) {
+			ctx.addIssue({
+				code: 'custom',
+				message: 'Passwords do not match',
+				path: ['confirmPassword']
+			});
+			return;
+		}
+	});
+export const enableTwoFactorSchema = z.object({
+	password: z.string().min(1)
+});
+
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type EnableTwoFactorInput = z.infer<typeof enableTwoFactorSchema>;
+
+// ========================
 // Settings Platform
 // ========================
 
@@ -148,6 +181,8 @@ export const destinationPlatforms = [
 	'custom'
 ] as const;
 export const geoModes = ['all', 'include', 'exclude'] as const;
+export const popunderBehaviors = ['background', 'new_tab', 'same_tab'] as const;
+export const popunderBrowserBehaviors = ['inherit', 'disabled', ...popunderBehaviors] as const;
 
 const httpUrlSchema = z
 	.string()
@@ -160,6 +195,86 @@ const optionalHttpUrlSchema = z
 	.union([z.literal(''), httpUrlSchema])
 	.transform((value) => value || undefined);
 
+const optionalAppUrlSchema = z
+	.string()
+	.trim()
+	.max(2048)
+	.refine(
+		(value) =>
+			value === '' ||
+			(/^[a-z][a-z0-9+.-]*:\/\/[^\s]+$/i.test(value) &&
+				!['javascript:', 'data:', 'file:', 'vbscript:'].includes(
+					value.slice(0, value.indexOf(':') + 1).toLowerCase()
+				)),
+		'Enter a valid app URL such as shopee://product/123'
+	)
+	.transform((value) => value || undefined);
+
+const destinationDeepLinkSchema = z
+	.object({
+		enabled: z.boolean().default(false),
+		androidScheme: optionalAppUrlSchema,
+		androidPackageName: z
+			.string()
+			.trim()
+			.max(255)
+			.refine(
+				(value) => value === '' || /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z0-9_]+)+$/.test(value),
+				'Enter a valid Android package name'
+			)
+			.transform((value) => value || undefined),
+		androidStoreUrl: optionalHttpUrlSchema,
+		iosScheme: optionalAppUrlSchema,
+		iosAppId: z
+			.string()
+			.trim()
+			.max(64)
+			.refine((value) => value === '' || /^\d+$/.test(value), 'Use the numeric Apple App ID')
+			.transform((value) => value || undefined),
+		iosStoreUrl: optionalHttpUrlSchema,
+		universalLink: optionalHttpUrlSchema,
+		webFallbackUrl: optionalHttpUrlSchema
+	})
+	.superRefine((deepLink, ctx) => {
+		if (
+			deepLink.enabled &&
+			!deepLink.androidScheme &&
+			!deepLink.iosScheme &&
+			!deepLink.universalLink
+		) {
+			ctx.addIssue({
+				code: 'custom',
+				message: 'Add an Android app URL, iOS app URL, or universal link'
+			});
+		}
+	});
+
+const popunderSettingsSchema = z
+	.object({
+		enabled: z.boolean().default(false),
+		targetUrl: optionalHttpUrlSchema,
+		behavior: z.enum(popunderBehaviors).default('background'),
+		delayMs: z.coerce.number().int().min(0).max(10000).default(0),
+		frequencyCap: z.coerce.number().int().min(1).max(100).default(1),
+		frequencyWindowHours: z.coerce.number().int().min(1).max(720).default(24),
+		browserRules: z
+			.object({
+				desktop: z.enum(popunderBrowserBehaviors).default('inherit'),
+				mobile: z.enum(popunderBrowserBehaviors).default('inherit'),
+				webview: z.enum(popunderBrowserBehaviors).default('same_tab')
+			})
+			.default({ desktop: 'inherit', mobile: 'inherit', webview: 'same_tab' })
+	})
+	.superRefine((settings, ctx) => {
+		if (settings.enabled && !settings.targetUrl) {
+			ctx.addIssue({
+				code: 'custom',
+				path: ['targetUrl'],
+				message: 'Add a second target URL when popunder is enabled'
+			});
+		}
+	});
+
 export const campaignDestinationSchema = z
 	.object({
 		id: z.string().uuid().optional(),
@@ -171,6 +286,17 @@ export const campaignDestinationSchema = z
 		weight: z.coerce.number().int().min(1).max(10000).default(100),
 		priority: z.coerce.number().int().min(0).max(10000).default(0),
 		geoMode: z.enum(geoModes).default('all'),
+		deepLink: destinationDeepLinkSchema.default({
+			enabled: false,
+			androidScheme: undefined,
+			androidPackageName: undefined,
+			androidStoreUrl: undefined,
+			iosScheme: undefined,
+			iosAppId: undefined,
+			iosStoreUrl: undefined,
+			universalLink: undefined,
+			webFallbackUrl: undefined
+		}),
 		countries: z
 			.array(
 				z
@@ -212,6 +338,15 @@ export const campaignSchema = z
 		trackingEnabled: z.boolean().default(true),
 		preserveQueryParams: z.boolean().default(true),
 		stripReferrer: z.boolean().default(false),
+		popunder: popunderSettingsSchema.default({
+			enabled: false,
+			targetUrl: undefined,
+			behavior: 'background',
+			delayMs: 0,
+			frequencyCap: 1,
+			frequencyWindowHours: 24,
+			browserRules: { desktop: 'inherit', mobile: 'inherit', webview: 'same_tab' }
+		}),
 		destinations: z.array(campaignDestinationSchema).min(1, 'Add at least one destination').max(50)
 	})
 	.superRefine((campaign, ctx) => {
@@ -234,6 +369,26 @@ export const campaignSchema = z
 					message: `Enabled destination percentages must total 100 (currently ${total})`
 				});
 			}
+		}
+
+		if (campaign.redirectType === 'deeplink') {
+			campaign.destinations.forEach((destination, index) => {
+				if (destination.enabled && !destination.deepLink.enabled) {
+					ctx.addIssue({
+						code: 'custom',
+						path: ['destinations', index, 'deepLink'],
+						message: 'Enabled destinations need deeplink configuration in deeplink mode'
+					});
+				}
+			});
+		}
+
+		if (campaign.popunder.enabled && !campaign.trackingEnabled) {
+			ctx.addIssue({
+				code: 'custom',
+				path: ['trackingEnabled'],
+				message: 'Analytics tracking is required for secure popunder delivery'
+			});
 		}
 	});
 

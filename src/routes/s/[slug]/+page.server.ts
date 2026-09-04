@@ -2,8 +2,10 @@ import { error } from '@sveltejs/kit';
 import { and, eq, gte } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { campaigns, clickEvents, destinations } from '$lib/server/db/schema';
+import { campaigns, clickEvents, destinations, safelinkPages } from '$lib/server/db/schema';
 import { withQueryParams } from '$lib/server/redirect/rules';
+import { safelinkViewModel } from '$lib/server/safelink';
+import { DEFAULT_SAFELINK_DOCUMENT } from '$lib/server/safelink-document';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -17,11 +19,16 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 			targetUrl: destinations.url,
 			preserveQueryParams: campaigns.preserveQueryParams,
 			queryParams: clickEvents.queryParams,
-			stripReferrer: campaigns.stripReferrer
+			stripReferrer: campaigns.stripReferrer,
+			pageTitle: safelinkPages.title,
+			pageStatus: safelinkPages.status,
+			publishedDocument: safelinkPages.publishedDocument,
+			pageTheme: safelinkPages.theme
 		})
 		.from(clickEvents)
 		.innerJoin(campaigns, eq(campaigns.id, clickEvents.campaignId))
 		.innerJoin(destinations, eq(destinations.id, clickEvents.destinationId))
+		.leftJoin(safelinkPages, eq(safelinkPages.campaignId, campaigns.id))
 		.where(
 			and(
 				eq(clickEvents.requestId, requestId),
@@ -44,5 +51,14 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 		'X-Robots-Tag': 'noindex, nofollow',
 		...(entry.stripReferrer ? { 'Referrer-Policy': 'no-referrer' } : {})
 	});
-	return { campaignName: entry.campaignName, targetUrl };
+	const hasPublishedPage = entry.pageStatus === 'published' && entry.publishedDocument;
+	const view = safelinkViewModel({
+		title: hasPublishedPage ? (entry.pageTitle ?? entry.campaignName) : entry.campaignName,
+		document: JSON.parse(DEFAULT_SAFELINK_DOCUMENT) as Record<string, unknown>,
+		publishedDocument: hasPublishedPage
+			? entry.publishedDocument
+			: (JSON.parse(DEFAULT_SAFELINK_DOCUMENT) as Record<string, unknown>),
+		theme: hasPublishedPage ? entry.pageTheme : {}
+	});
+	return { view, targetUrl };
 };

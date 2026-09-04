@@ -1,7 +1,14 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
-	import { ArrowLeftIcon, PlusIcon, SaveIcon, Trash2Icon } from '@lucide/svelte';
+	import {
+		ArrowLeftIcon,
+		ExternalLinkIcon,
+		PlusIcon,
+		SaveIcon,
+		SmartphoneIcon,
+		Trash2Icon
+	} from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -19,6 +26,17 @@
 		priority: number;
 		geoMode: 'all' | 'include' | 'exclude';
 		countries: string;
+		deepLink: {
+			enabled: boolean;
+			androidScheme: string;
+			androidPackageName: string;
+			androidStoreUrl: string;
+			iosScheme: string;
+			iosAppId: string;
+			iosStoreUrl: string;
+			universalLink: string;
+			webFallbackUrl: string;
+		};
 	};
 
 	type Campaign = {
@@ -34,6 +52,15 @@
 		trackingEnabled: boolean;
 		preserveQueryParams: boolean;
 		stripReferrer: boolean;
+		popunderSetting: {
+			enabled: boolean;
+			targetUrl: string;
+			behavior: 'background' | 'new_tab' | 'same_tab';
+			delayMs: number;
+			frequencyCap: number;
+			frequencyWindowHours: number;
+			browserRules: Record<string, unknown>;
+		} | null;
 		destinations: Array<{
 			id: string;
 			name: string;
@@ -45,6 +72,16 @@
 			priority: number;
 			geoMode: Destination['geoMode'];
 			geoTargets: Array<{ countryCode: string }>;
+			deepLink: {
+				androidScheme: string | null;
+				androidPackageName: string | null;
+				androidStoreUrl: string | null;
+				iosScheme: string | null;
+				iosAppId: string | null;
+				iosStoreUrl: string | null;
+				universalLink: string | null;
+				webFallbackUrl: string | null;
+			} | null;
 		}>;
 	};
 
@@ -68,7 +105,18 @@
 			weight: 100,
 			priority: 0,
 			geoMode: 'all',
-			countries: ''
+			countries: '',
+			deepLink: {
+				enabled: false,
+				androidScheme: '',
+				androidPackageName: '',
+				androidStoreUrl: '',
+				iosScheme: '',
+				iosAppId: '',
+				iosStoreUrl: '',
+				universalLink: '',
+				webFallbackUrl: ''
+			}
 		};
 	}
 
@@ -83,16 +131,46 @@
 			weight: destination.weight,
 			priority: destination.priority,
 			geoMode: destination.geoMode,
-			countries: destination.geoTargets.map((target) => target.countryCode).join(', ')
+			countries: destination.geoTargets.map((target) => target.countryCode).join(', '),
+			deepLink: {
+				enabled: Boolean(destination.deepLink),
+				androidScheme: destination.deepLink?.androidScheme ?? '',
+				androidPackageName: destination.deepLink?.androidPackageName ?? '',
+				androidStoreUrl: destination.deepLink?.androidStoreUrl ?? '',
+				iosScheme: destination.deepLink?.iosScheme ?? '',
+				iosAppId: destination.deepLink?.iosAppId ?? '',
+				iosStoreUrl: destination.deepLink?.iosStoreUrl ?? '',
+				universalLink: destination.deepLink?.universalLink ?? '',
+				webFallbackUrl: destination.deepLink?.webFallbackUrl ?? ''
+			}
 		})) ?? [blankDestination()]
 	);
 	let rotationStrategy = $state<Campaign['rotationStrategy']>(
 		untrack(() => campaign)?.rotationStrategy ?? 'equal'
 	);
+	let redirectType = $state<Campaign['redirectType']>(
+		untrack(() => campaign)?.redirectType ?? 'direct'
+	);
+	type PopunderBehavior = 'background' | 'new_tab' | 'same_tab';
+	type BrowserBehavior = 'inherit' | 'disabled' | PopunderBehavior;
+	const storedBrowserRules = untrack(() => campaign)?.popunderSetting?.browserRules ?? {};
+	const browserBehavior = (key: string, fallback: BrowserBehavior): BrowserBehavior => {
+		const value = storedBrowserRules[key];
+		return ['inherit', 'disabled', 'background', 'new_tab', 'same_tab'].includes(String(value))
+			? (value as BrowserBehavior)
+			: fallback;
+	};
+	let popunderEnabled = $state(untrack(() => campaign)?.popunderSetting?.enabled ?? false);
+	let popunderBehavior = $state<PopunderBehavior>(
+		untrack(() => campaign)?.popunderSetting?.behavior ?? 'background'
+	);
+	let popunderDesktopBehavior = $state<BrowserBehavior>(browserBehavior('desktop', 'inherit'));
+	let popunderMobileBehavior = $state<BrowserBehavior>(browserBehavior('mobile', 'inherit'));
+	let popunderWebviewBehavior = $state<BrowserBehavior>(browserBehavior('webview', 'same_tab'));
 	let submitting = $state(false);
 
 	const selectClass =
-		'border-input bg-background focus:border-ring focus:ring-ring/30 h-9 w-full rounded-md border px-2.5 text-sm outline-none focus:ring-3';
+		'border-input bg-background focus:border-ring focus:ring-ring/30 h-9 w-full rounded-md border px-2.5 text-sm outline-none focus:ring-3 capitalize';
 	const behaviorOptions: Array<[string, string, boolean]> = untrack(() => [
 		['trackingEnabled', 'Track analytics', campaign?.trackingEnabled ?? true],
 		['botProtectionEnabled', 'Enable bot protection', campaign?.botProtectionEnabled ?? true],
@@ -108,7 +186,6 @@
 		if (destinations.length === 1) return;
 		destinations.splice(index, 1);
 	}
-
 </script>
 
 <form
@@ -176,37 +253,19 @@
 			</div>
 			<div class="space-y-2">
 				<Label for="status">Status</Label>
-				<Select.Root type="single" name="status" value={campaign?.status ?? 'draft'}>
-					<Select.Trigger id="status" name="status" class="w-full capitalize">
-						{campaign?.status ?? 'draft'}
-					</Select.Trigger>
-					<Select.Content class="w-full">
-						<Select.Group>
-							{#each ['draft', 'active', 'paused', 'archived'] as status (status)}
-								<Select.Item value={status} label={status} class="capitalize">
-									{status}
-								</Select.Item>
-							{/each}
-						</Select.Group>
-					</Select.Content>
-				</Select.Root>
+				<select id="status" name="status" class={selectClass} value={campaign?.status ?? 'draft'}>
+					{#each ['draft', 'active', 'paused', 'archived'] as status (status)}
+						<option value={status}>{status}</option>
+					{/each}
+				</select>
 			</div>
 			<div class="space-y-2">
 				<Label for="redirectType">Redirect type</Label>
-        <Select.Root type="single" name="redirectType" value={campaign?.redirectType ?? 'direct'}>
-					<Select.Trigger id="redirectType" name="redirectType" class="w-full capitalize">
-						{campaign?.redirectType ?? 'direct'}
-					</Select.Trigger>
-					<Select.Content class="w-full">
-						<Select.Group>
-							{#each ['direct', 'deeplink', 'safelink'] as redirectType (redirectType)}
-								<Select.Item value={redirectType} label={redirectType} class="capitalize">
-									{redirectType}
-								</Select.Item>
-							{/each}
-						</Select.Group>
-					</Select.Content>
-				</Select.Root>
+				<select id="redirectType" name="redirectType" class={selectClass} bind:value={redirectType}>
+					{#each ['direct', 'deeplink', 'safelink'] as redirectType (redirectType)}
+						<option value={redirectType}>{redirectType}</option>
+					{/each}
+				</select>
 			</div>
 			<div class="space-y-2">
 				<Label for="rotationStrategy">Rotation strategy</Label>
@@ -230,6 +289,137 @@
 					value={campaign?.fallbackUrl ?? ''}
 					placeholder="https://example.com/unavailable"
 				/>
+			</div>
+		</div>
+	</section>
+
+	<section class="border-b border-border pb-6">
+		<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+			<div>
+				<h2 class="flex items-center gap-2 text-base font-semibold">
+					<ExternalLinkIcon class="size-4" /> Second target
+				</h2>
+				<p class="mt-1 text-sm text-muted-foreground">
+					Open a secondary URL from a visitor-confirmed click.
+				</p>
+			</div>
+			<label class="flex items-center gap-2 text-sm font-medium">
+				<input
+					type="checkbox"
+					name="popunderEnabled"
+					bind:checked={popunderEnabled}
+					class="size-4"
+				/>
+				Enable
+			</label>
+		</div>
+
+		<div class="grid gap-4 md:grid-cols-2" class:opacity-60={!popunderEnabled}>
+			<div class="space-y-2 md:col-span-2">
+				<Label for="popunderTargetUrl">Second target URL</Label>
+				<Input
+					id="popunderTargetUrl"
+					name="popunderTargetUrl"
+					type="url"
+					required={popunderEnabled}
+					value={campaign?.popunderSetting?.targetUrl ?? ''}
+					placeholder="https://example.com/second-offer"
+				/>
+			</div>
+			<div class="space-y-2">
+				<Label for="popunderBehavior">Default behavior</Label>
+				<select
+					id="popunderBehavior"
+					name="popunderBehavior"
+					class={selectClass}
+					bind:value={popunderBehavior}
+				>
+					<option value="background">Second target in background tab</option>
+					<option value="new_tab">Second target in new tab</option>
+					<option value="same_tab">Show second target when visitor returns</option>
+				</select>
+			</div>
+			<div class="grid grid-cols-2 gap-3">
+				<div class="space-y-2">
+					<Label for="popunderDelayMs">Delay (ms)</Label>
+					<Input
+						id="popunderDelayMs"
+						name="popunderDelayMs"
+						type="number"
+						min="0"
+						max="10000"
+						value={campaign?.popunderSetting?.delayMs ?? 0}
+					/>
+				</div>
+				<div class="space-y-2">
+					<Label for="popunderFrequencyCap">Max displays</Label>
+					<Input
+						id="popunderFrequencyCap"
+						name="popunderFrequencyCap"
+						type="number"
+						min="1"
+						max="100"
+						value={campaign?.popunderSetting?.frequencyCap ?? 1}
+					/>
+				</div>
+			</div>
+			<div class="space-y-2">
+				<Label for="popunderFrequencyWindowHours">Frequency window (hours)</Label>
+				<Input
+					id="popunderFrequencyWindowHours"
+					name="popunderFrequencyWindowHours"
+					type="number"
+					min="1"
+					max="720"
+					value={campaign?.popunderSetting?.frequencyWindowHours ?? 24}
+				/>
+			</div>
+			<div></div>
+
+			<div class="space-y-2">
+				<Label for="popunderDesktopBehavior">Desktop behavior</Label>
+				<select
+					id="popunderDesktopBehavior"
+					name="popunderDesktopBehavior"
+					class={selectClass}
+					bind:value={popunderDesktopBehavior}
+				>
+					<option value="inherit">Use default</option>
+					<option value="disabled">Disabled</option>
+					<option value="background">Background tab</option>
+					<option value="new_tab">New tab</option>
+					<option value="same_tab">On browser back</option>
+				</select>
+			</div>
+			<div class="space-y-2">
+				<Label for="popunderMobileBehavior">Mobile behavior</Label>
+				<select
+					id="popunderMobileBehavior"
+					name="popunderMobileBehavior"
+					class={selectClass}
+					bind:value={popunderMobileBehavior}
+				>
+					<option value="inherit">Use default</option>
+					<option value="disabled">Disabled</option>
+					<option value="background">Background tab</option>
+					<option value="new_tab">New tab</option>
+					<option value="same_tab">On browser back</option>
+				</select>
+			</div>
+			<div class="space-y-2">
+				<Label for="popunderWebviewBehavior">Social WebView behavior</Label>
+				<select
+					id="popunderWebviewBehavior"
+					name="popunderWebviewBehavior"
+					class={selectClass}
+					bind:value={popunderWebviewBehavior}
+				>
+					<option value="inherit">Use default</option>
+					<option value="disabled">Disabled</option>
+					<option value="background">Background tab</option>
+					<option value="new_tab">New tab</option>
+					<option value="same_tab">On browser back</option>
+				</select>
 			</div>
 		</div>
 	</section>
@@ -381,6 +571,113 @@
 								bind:value={destination.countries}
 								placeholder="ID, SG, MY"
 							/>
+						</div>
+					</div>
+
+					<div
+						class:hidden={redirectType !== 'deeplink'}
+						class="mt-5 border-t border-border pt-5"
+						aria-hidden={redirectType !== 'deeplink'}
+					>
+						<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+							<div>
+								<h3 class="flex items-center gap-2 text-sm font-semibold">
+									<SmartphoneIcon class="size-4" /> App deeplink
+								</h3>
+								<p class="mt-1 text-xs text-muted-foreground">
+									App launch falls back to the store or destination URL.
+								</p>
+							</div>
+							<label class="flex items-center gap-2 text-sm font-medium">
+								<input
+									type="checkbox"
+									name="destinationDeepLinkEnabled"
+									value={index}
+									bind:checked={destination.deepLink.enabled}
+									class="size-4"
+								/>
+								Enable
+							</label>
+						</div>
+
+						<div class="grid gap-4 md:grid-cols-2">
+							<div class="space-y-2">
+								<Label for="destination-android-scheme-{index}">Android app URL</Label>
+								<Input
+									id="destination-android-scheme-{index}"
+									name="destinationAndroidScheme"
+									bind:value={destination.deepLink.androidScheme}
+									placeholder="shopee://product/123"
+								/>
+							</div>
+							<div class="space-y-2">
+								<Label for="destination-android-package-{index}">Android package</Label>
+								<Input
+									id="destination-android-package-{index}"
+									name="destinationAndroidPackageName"
+									bind:value={destination.deepLink.androidPackageName}
+									placeholder="com.example.app"
+								/>
+							</div>
+							<div class="space-y-2 md:col-span-2">
+								<Label for="destination-android-store-{index}">Play Store URL</Label>
+								<Input
+									id="destination-android-store-{index}"
+									name="destinationAndroidStoreUrl"
+									type="url"
+									bind:value={destination.deepLink.androidStoreUrl}
+									placeholder="Leave blank to derive from package"
+								/>
+							</div>
+							<div class="space-y-2">
+								<Label for="destination-ios-scheme-{index}">iOS app URL</Label>
+								<Input
+									id="destination-ios-scheme-{index}"
+									name="destinationIosScheme"
+									bind:value={destination.deepLink.iosScheme}
+									placeholder="myapp://offer/123"
+								/>
+							</div>
+							<div class="space-y-2">
+								<Label for="destination-ios-id-{index}">Apple App ID</Label>
+								<Input
+									id="destination-ios-id-{index}"
+									name="destinationIosAppId"
+									inputmode="numeric"
+									bind:value={destination.deepLink.iosAppId}
+									placeholder="Numeric ID"
+								/>
+							</div>
+							<div class="space-y-2 md:col-span-2">
+								<Label for="destination-ios-store-{index}">App Store URL</Label>
+								<Input
+									id="destination-ios-store-{index}"
+									name="destinationIosStoreUrl"
+									type="url"
+									bind:value={destination.deepLink.iosStoreUrl}
+									placeholder="Leave blank to derive from App ID"
+								/>
+							</div>
+							<div class="space-y-2 md:col-span-2">
+								<Label for="destination-universal-link-{index}">Universal / App Link</Label>
+								<Input
+									id="destination-universal-link-{index}"
+									name="destinationUniversalLink"
+									type="url"
+									bind:value={destination.deepLink.universalLink}
+									placeholder="https://app.example.com/offer/123"
+								/>
+							</div>
+							<div class="space-y-2 md:col-span-2">
+								<Label for="destination-web-fallback-{index}">Web fallback</Label>
+								<Input
+									id="destination-web-fallback-{index}"
+									name="destinationWebFallbackUrl"
+									type="url"
+									bind:value={destination.deepLink.webFallbackUrl}
+									placeholder="Defaults to destination URL"
+								/>
+							</div>
 						</div>
 					</div>
 				</div>

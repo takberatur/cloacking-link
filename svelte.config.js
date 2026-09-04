@@ -21,7 +21,8 @@ const config = {
 		// },
 		alias: {
 			'@': './src/lib',
-			'@/*': './src/lib/*'
+			'@/*': './src/lib/*',
+			slx: './node_modules/svelte-lexical/dist'
 		}
 	}
 };

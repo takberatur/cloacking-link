@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
+import { SvelteURLSearchParams } from "svelte/reactivity"
 	import { enhance } from '$app/forms';
 	import { AppSidebarLayout } from '@/components/app';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
+  import { confirmDelete, ConfirmDeleteDialog } from '$lib/components/ui/confirm-delete-dialog';
 	import {
 		CheckIcon,
 		CopyIcon,
@@ -24,7 +27,7 @@
 	});
 
 	function pageUrl(page: number) {
-		const params = new URLSearchParams();
+		const params = new SvelteURLSearchParams();
 		if (data.filters.query) params.set('q', data.filters.query);
 		if (data.filters.status) params.set('status', data.filters.status);
 		if (data.filters.from) params.set('from', data.filters.from);
@@ -51,6 +54,7 @@
 </script>
 
 <AppSidebarLayout page="Campaigns" user={data.user} setting={data.setting}>
+<ConfirmDeleteDialog />
 	<div class="space-y-5 px-1 sm:px-3">
 		<div class="flex flex-wrap items-end justify-between gap-4">
 			<div>
@@ -98,7 +102,7 @@
 				class="h-9 rounded-md border border-input bg-background px-2.5 text-sm"
 			>
 				<option value="">All statuses</option>
-				{#each ['draft', 'active', 'paused', 'archived'] as status}
+				{#each ['draft', 'active', 'paused', 'archived'] as status, i (i)}
 					<option value={status} selected={data.filters.status === status}
 						>{status[0].toUpperCase() + status.slice(1)}</option
 					>
@@ -183,10 +187,20 @@
 									<form
 										method="POST"
 										action="?/delete"
-										use:enhance
-										onsubmit={(event) => {
-											if (!confirm(`Delete ${campaign.name}?`)) event.preventDefault();
-										}}
+										use:enhance={()=> {
+                      return async ({ update }) => {
+                       
+                         confirmDelete({
+										title: 'Delete campaign',
+										description: `Delete ${campaign.name}?`,
+										onConfirm: async () => {
+                                          await update();
+											data.campaigns.items = data.campaigns.items.filter((p) => p.id !== campaign.id);
+                      await invalidateAll()
+										}
+									});
+                      }
+                    }}
 									>
 										<input type="hidden" name="campaignId" value={campaign.id} />
 										<Button

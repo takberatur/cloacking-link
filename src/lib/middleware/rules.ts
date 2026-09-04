@@ -37,7 +37,7 @@ export const protectedAppRoutes = ['/app'] as const;
 export const restrictedSuperAdminRoutes = ['/app/settings'] as const;
 export const restrictedModeratorRoutes = ['/app/users'] as const;
 
-export const publicApiRoutes = ['/api/auth', '/api/public', '/api/link'] as const;
+export const publicApiRoutes = ['/api/auth', '/api/public', '/api/link', '/api/embed'] as const;
 export const adminApiRoutes = ['/api/admin', '/api/setting'] as const;
 export const moderatorApiRoutes = ['/api/moderator'] as const;
 export const userApiRoutes = ['/api/user'] as const;
@@ -59,6 +59,7 @@ export const apiRouteRules = {
 	'/api/auth': { public: true },
 	'/api/public': { public: true },
 	'/api/link': { public: true },
+	'/api/embed': { public: true },
 	'/api/setting': {
 		roles: [ROLE_LEVELS.SUPERADMIN],
 		permissions: ['system:settings'],

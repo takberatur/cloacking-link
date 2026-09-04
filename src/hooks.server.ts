@@ -40,7 +40,14 @@ const initServer: Handle = async ({ event, resolve }) => {
 	event.locals.db = db;
 	event.locals.helper = new ServiceHelper(event);
 
-	if (!event.url.pathname.startsWith('/r/') && !event.url.pathname.startsWith('/s/')) {
+	if (
+		!event.url.pathname.startsWith('/r/') &&
+		!event.url.pathname.startsWith('/s/') &&
+		!event.url.pathname.startsWith('/d/') &&
+		!event.url.pathname.startsWith('/p/') &&
+		!event.url.pathname.startsWith('/e/') &&
+		!event.url.pathname.startsWith('/api/embed/')
+	) {
 		event.locals.setting = await event.locals.helper.setting.getSettings();
 	}
 
@@ -56,7 +63,14 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	if (matchesRoutePrefix(pathname, '/api/auth')) {
 		return auth.handler(request);
 	}
-	if (matchesRoutePrefix(pathname, '/r') || matchesRoutePrefix(pathname, '/s')) {
+	if (
+		matchesRoutePrefix(pathname, '/r') ||
+		matchesRoutePrefix(pathname, '/s') ||
+		matchesRoutePrefix(pathname, '/d') ||
+		matchesRoutePrefix(pathname, '/p') ||
+		matchesRoutePrefix(pathname, '/e') ||
+		matchesRoutePrefix(pathname, '/api/embed')
+	) {
 		return resolve(event);
 	}
 

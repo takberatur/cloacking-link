@@ -79,6 +79,7 @@ export const popunderBehaviorEnum = pgEnum('popunder_behavior', [
 	'new_tab',
 	'same_tab'
 ]);
+export const embedEventTypeEnum = pgEnum('embed_event_type', ['impression', 'click']);
 
 export const user = pgTable(
 	'user',
@@ -529,6 +530,55 @@ export const popunderSettings = pgTable(
 	(t) => [index('popunder_settings_campaign_enabled_idx').on(t.campaignId, t.enabled)]
 );
 
+export const campaignEmbedSettings = pgTable(
+	'campaign_embed_settings',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		campaignId: uuid('campaign_id')
+			.notNull()
+			.unique()
+			.references(() => campaigns.id, { onDelete: 'cascade' }),
+		publicKey: varchar('public_key', { length: 64 }).notNull().unique(),
+		enabled: boolean('enabled').notNull().default(false),
+		rewriteLinks: boolean('rewrite_links').notNull().default(true),
+		selector: varchar('selector', { length: 255 }).notNull().default('a[data-linkshift]'),
+		forwardPageQuery: boolean('forward_page_query').notNull().default(true),
+		allowedDomains: jsonb('allowed_domains').$type<string[]>().notNull().default([]),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(t) => [
+		index('campaign_embed_settings_campaign_enabled_idx').on(t.campaignId, t.enabled),
+		index('campaign_embed_settings_public_key_idx').on(t.publicKey)
+	]
+);
+
+export const embedEvents = pgTable(
+	'embed_events',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		ownerId: uuid('owner_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		campaignId: uuid('campaign_id')
+			.notNull()
+			.references(() => campaigns.id, { onDelete: 'cascade' }),
+		embedSettingId: uuid('embed_setting_id')
+			.notNull()
+			.references(() => campaignEmbedSettings.id, { onDelete: 'cascade' }),
+		type: embedEventTypeEnum('type').notNull(),
+		sourceDomain: varchar('source_domain', { length: 255 }).notNull(),
+		pageUrl: text('page_url'),
+		userAgent: text('user_agent'),
+		occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(t) => [
+		index('embed_events_campaign_occurred_at_idx').on(t.campaignId, t.occurredAt),
+		index('embed_events_setting_type_occurred_idx').on(t.embedSettingId, t.type, t.occurredAt),
+		index('embed_events_owner_occurred_at_idx').on(t.ownerId, t.occurredAt)
+	]
+);
+
 export const clickEvents = pgTable(
 	'click_events',
 	{
@@ -590,7 +640,8 @@ export const userRelations = relations(user, ({ many }) => ({
 	campaigns: many(campaigns),
 	blockRules: many(blockRules),
 	visitors: many(visitors),
-	clickEvents: many(clickEvents)
+	clickEvents: many(clickEvents),
+	embedEvents: many(embedEvents)
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -653,7 +704,9 @@ export const campaignRelations = relations(campaigns, ({ one, many }) => ({
 	blockRules: many(blockRules),
 	clickEvents: many(clickEvents),
 	safelinkPage: one(safelinkPages),
-	popunderSetting: one(popunderSettings)
+	popunderSetting: one(popunderSettings),
+	embedSetting: one(campaignEmbedSettings),
+	embedEvents: many(embedEvents)
 }));
 
 export const destinationRelations = relations(destinations, ({ one, many }) => ({
@@ -711,6 +764,29 @@ export const popunderSettingRelations = relations(popunderSettings, ({ one }) =>
 	campaign: one(campaigns, {
 		fields: [popunderSettings.campaignId],
 		references: [campaigns.id]
+	})
+}));
+
+export const campaignEmbedSettingRelations = relations(campaignEmbedSettings, ({ one, many }) => ({
+	campaign: one(campaigns, {
+		fields: [campaignEmbedSettings.campaignId],
+		references: [campaigns.id]
+	}),
+	events: many(embedEvents)
+}));
+
+export const embedEventRelations = relations(embedEvents, ({ one }) => ({
+	owner: one(user, {
+		fields: [embedEvents.ownerId],
+		references: [user.id]
+	}),
+	campaign: one(campaigns, {
+		fields: [embedEvents.campaignId],
+		references: [campaigns.id]
+	}),
+	setting: one(campaignEmbedSettings, {
+		fields: [embedEvents.embedSettingId],
+		references: [campaignEmbedSettings.id]
 	})
 }));
 

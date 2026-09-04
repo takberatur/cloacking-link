@@ -1,11 +1,19 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { deleteCampaign, getCampaign, setCampaignStatus } from '$lib/server/campaign';
+import { getCampaignAnalytics, parseAnalyticsRange } from '$lib/server/analytics';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
 	if (!locals.user) redirect(303, '/signin');
 	const campaign = await getCampaign(locals.user.id, params.id);
 	if (!campaign) error(404, 'Campaign not found');
+	const analytics = await getCampaignAnalytics(
+		locals.user.id,
+		params.id,
+		parseAnalyticsRange(url.searchParams),
+		Number(url.searchParams.get('page') ?? 1)
+	);
+	if (!analytics) error(404, 'Campaign not found');
 
 	return {
 		user: locals.user,
@@ -13,6 +21,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		setting: locals.setting,
 		publicUrl: `${url.origin.replace(/\/$/, '')}/r/${campaign.slug}`,
 		campaign,
+		analytics,
 		created: url.searchParams.get('created') === '1',
 		updated: url.searchParams.get('updated') === '1'
 	};

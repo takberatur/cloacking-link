@@ -22,7 +22,10 @@ function dateKey(value: Date): string {
 	return value.toISOString().slice(0, 10);
 }
 
-export function parseAnalyticsRange(searchParams: URLSearchParams, now = new Date()): AnalyticsRange {
+export function parseAnalyticsRange(
+	searchParams: URLSearchParams,
+	now = new Date()
+): AnalyticsRange {
 	const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 	const defaultFrom = new Date(today);
 	defaultFrom.setUTCDate(defaultFrom.getUTCDate() - 29);
@@ -73,20 +76,30 @@ function fillTimeline(
 ) {
 	const byDay = new Map(rows.map((row) => [row.day, row]));
 	const result = [];
-	for (const cursor = new Date(range.fromDate); cursor < range.toExclusive; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
+	for (
+		const cursor = new Date(range.fromDate);
+		cursor < range.toExclusive;
+		cursor.setUTCDate(cursor.getUTCDate() + 1)
+	) {
 		const day = dateKey(cursor);
 		result.push(byDay.get(day) ?? { day, clicks: 0, blocked: 0, delivered: 0 });
 	}
 	return result;
 }
 
-function withRates<T extends { totalClicks: number; blockedClicks: number; deliveredClicks: number }>(summary: T) {
+function withRates<
+	T extends { totalClicks: number; blockedClicks: number; deliveredClicks: number }
+>(summary: T) {
 	return {
 		...summary,
 		deliveryRate:
-			summary.totalClicks === 0 ? 0 : Math.round((summary.deliveredClicks / summary.totalClicks) * 1000) / 10,
+			summary.totalClicks === 0
+				? 0
+				: Math.round((summary.deliveredClicks / summary.totalClicks) * 1000) / 10,
 		blockRate:
-			summary.totalClicks === 0 ? 0 : Math.round((summary.blockedClicks / summary.totalClicks) * 1000) / 10
+			summary.totalClicks === 0
+				? 0
+				: Math.round((summary.blockedClicks / summary.totalClicks) * 1000) / 10
 	};
 }
 
@@ -96,12 +109,7 @@ export async function getDashboardAnalytics(ownerId: string, range: AnalyticsRan
 	const [summaryRows, timelineRows, topCampaigns, countries, devices, browsers, activeRows] =
 		await Promise.all([
 			db.select(summarySelection()).from(clickEvents).where(where),
-			db
-				.select(timelineSelection())
-				.from(clickEvents)
-				.where(where)
-				.groupBy(day)
-				.orderBy(asc(day)),
+			db.select(timelineSelection()).from(clickEvents).where(where).groupBy(day).orderBy(asc(day)),
 			db
 				.select({
 					id: campaigns.id,
@@ -182,12 +190,7 @@ export async function getCampaignAnalytics(
 	const [summaryRows, timelineRows, destinationRows, blockedReasons, countries, visitorCount] =
 		await Promise.all([
 			db.select(summarySelection()).from(clickEvents).where(where),
-			db
-				.select(timelineSelection())
-				.from(clickEvents)
-				.where(where)
-				.groupBy(day)
-				.orderBy(asc(day)),
+			db.select(timelineSelection()).from(clickEvents).where(where).groupBy(day).orderBy(asc(day)),
 			db
 				.select({
 					id: destinations.id,
@@ -268,4 +271,3 @@ export async function getCampaignAnalytics(
 		}
 	};
 }
-

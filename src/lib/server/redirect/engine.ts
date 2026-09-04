@@ -4,6 +4,7 @@ import { and, asc, count, eq, gte, inArray, isNull, or, sql } from 'drizzle-orm'
 import { db } from '$lib/server/db';
 import { blockRules, campaigns, clickEvents, destinations, visitors } from '$lib/server/db/schema';
 import { evaluateRules, safeExternalUrl, withQueryParams } from './rules';
+import { createPopunderPlan } from './popunder';
 import { selectDestination } from './rotation';
 import type { EvaluatedRule, VisitorContext } from './types';
 
@@ -131,6 +132,7 @@ export async function resolveRedirect(input: ResolveRedirectInput): Promise<Redi
 	const campaign = await db.query.campaigns.findFirst({
 		where: eq(campaigns.slug, input.slug),
 		with: {
+			popunderSetting: true,
 			destinations: {
 				orderBy: [asc(destinations.position)],
 				with: { geoTargets: true, deepLink: true }
@@ -313,12 +315,31 @@ export async function resolveRedirect(input: ResolveRedirectInput): Promise<Redi
 
 	const outcome = campaign.redirectType === 'safelink' ? 'safelink' : 'redirected';
 	const tracked = await record(outcome, selected.id);
+	const primaryLocation =
+		campaign.redirectType === 'safelink' && tracked
+			? `/s/${encodeURIComponent(campaign.slug)}?rid=${encodeURIComponent(requestId)}`
+			: campaign.redirectType === 'deeplink' && tracked && selected.deepLink
+				? `/d/${encodeURIComponent(campaign.slug)}?rid=${encodeURIComponent(requestId)}`
+				: location;
+	const popunderPlan = campaign.popunderSetting
+		? createPopunderPlan({
+				enabled: campaign.popunderSetting.enabled,
+				targetUrl: campaign.popunderSetting.targetUrl,
+				behavior: campaign.popunderSetting.behavior,
+				delayMs: campaign.popunderSetting.delayMs,
+				frequencyCap: campaign.popunderSetting.frequencyCap,
+				frequencyWindowHours: campaign.popunderSetting.frequencyWindowHours,
+				browserRules: campaign.popunderSetting.browserRules,
+				browser: input.visitor.browser,
+				deviceType: input.visitor.deviceType
+			})
+		: null;
 	return {
 		kind: 'redirect',
 		location:
-			campaign.redirectType === 'safelink' && tracked
-				? `/s/${encodeURIComponent(campaign.slug)}?rid=${encodeURIComponent(requestId)}`
-				: location,
+			popunderPlan && tracked
+				? `/p/${encodeURIComponent(campaign.slug)}?rid=${encodeURIComponent(requestId)}`
+				: primaryLocation,
 		status: validRedirectCode(campaign.redirectCode),
 		requestId,
 		stripReferrer: campaign.stripReferrer
