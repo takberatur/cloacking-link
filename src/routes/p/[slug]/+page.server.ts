@@ -10,7 +10,7 @@ import {
 	popunderSettings
 } from '$lib/server/db/schema';
 import { createPopunderPlan } from '$lib/server/redirect/popunder';
-import { withQueryParams } from '$lib/server/redirect/rules';
+import { withAttributionParams } from '$lib/server/redirect/rules';
 
 export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 	const requestId = url.searchParams.get('rid');
@@ -28,6 +28,10 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 			campaignSlug: campaigns.slug,
 			redirectType: campaigns.redirectType,
 			preserveQueryParams: campaigns.preserveQueryParams,
+			attributionEnabled: campaigns.attributionEnabled,
+			attributionSource: campaigns.attributionSource,
+			attributionMedium: campaigns.attributionMedium,
+			attributionCampaign: campaigns.attributionCampaign,
 			destinationUrl: destinations.url,
 			deepLinkId: destinationDeepLinks.id,
 			queryParams: clickEvents.queryParams,
@@ -75,7 +79,12 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 			? `/s/${encodeURIComponent(row.campaignSlug)}?rid=${encodeURIComponent(requestId)}`
 			: row.redirectType === 'deeplink' && row.deepLinkId
 				? `/d/${encodeURIComponent(row.campaignSlug)}?rid=${encodeURIComponent(requestId)}`
-				: withQueryParams(row.destinationUrl, row.preserveQueryParams ? queryParams : {});
+				: withAttributionParams(row.destinationUrl, row.preserveQueryParams ? queryParams : {}, {
+						enabled: row.attributionEnabled,
+						source: row.attributionSource,
+						medium: row.attributionMedium,
+						campaign: row.attributionCampaign
+					});
 	if (!primaryUrl) error(404, 'Primary destination is unavailable');
 
 	setHeaders({

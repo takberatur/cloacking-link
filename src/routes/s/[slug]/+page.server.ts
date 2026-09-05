@@ -3,7 +3,7 @@ import { and, eq, gte } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { campaigns, clickEvents, destinations, safelinkPages } from '$lib/server/db/schema';
-import { withQueryParams } from '$lib/server/redirect/rules';
+import { withAttributionParams } from '$lib/server/redirect/rules';
 import { safelinkViewModel } from '$lib/server/safelink';
 import { DEFAULT_SAFELINK_DOCUMENT } from '$lib/server/safelink-document';
 
@@ -18,6 +18,10 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 			campaignName: campaigns.name,
 			targetUrl: destinations.url,
 			preserveQueryParams: campaigns.preserveQueryParams,
+			attributionEnabled: campaigns.attributionEnabled,
+			attributionSource: campaigns.attributionSource,
+			attributionMedium: campaigns.attributionMedium,
+			attributionCampaign: campaigns.attributionCampaign,
 			queryParams: clickEvents.queryParams,
 			stripReferrer: campaigns.stripReferrer,
 			pageTitle: safelinkPages.title,
@@ -40,9 +44,15 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 		.limit(1);
 
 	if (!entry) error(404, 'Safelink request not found');
-	const targetUrl = withQueryParams(
+	const targetUrl = withAttributionParams(
 		entry.targetUrl,
-		entry.preserveQueryParams ? entry.queryParams : {}
+		entry.preserveQueryParams ? entry.queryParams : {},
+		{
+			enabled: entry.attributionEnabled,
+			source: entry.attributionSource,
+			medium: entry.attributionMedium,
+			campaign: entry.attributionCampaign
+		}
 	);
 	if (!targetUrl) error(404, 'Destination unavailable');
 

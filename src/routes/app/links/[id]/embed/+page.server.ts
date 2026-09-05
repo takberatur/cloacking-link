@@ -6,6 +6,7 @@ import {
 	rotateEmbedPublicKey,
 	saveEmbedSettings
 } from '$lib/server/embed';
+import { writeAuditLog } from '$lib/server/audit';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
 	if (!locals.user) redirect(303, '/signin');
@@ -41,6 +42,12 @@ export const actions: Actions = {
 		if (!(await saveEmbedSettings(locals.user.id, params.id, input))) {
 			return fail(404, { error: 'Campaign or embed settings not found' });
 		}
+		await writeAuditLog({
+			actorId: locals.user.id,
+			action: 'embed.settings_updated',
+			targetType: 'campaign',
+			targetId: params.id
+		});
 		redirect(303, '?saved=1');
 	},
 	rotate: async ({ locals, params }) => {
@@ -48,6 +55,12 @@ export const actions: Actions = {
 		if (!(await rotateEmbedPublicKey(locals.user.id, params.id))) {
 			return fail(404, { error: 'Campaign or embed settings not found' });
 		}
+		await writeAuditLog({
+			actorId: locals.user.id,
+			action: 'embed.key_rotated',
+			targetType: 'campaign',
+			targetId: params.id
+		});
 		redirect(303, '?rotated=1');
 	}
 };

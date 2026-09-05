@@ -41,6 +41,7 @@
 
 	type Campaign = {
 		id: string;
+		teamId: string | null;
 		name: string;
 		slug: string;
 		description: string | null;
@@ -52,6 +53,10 @@
 		trackingEnabled: boolean;
 		preserveQueryParams: boolean;
 		stripReferrer: boolean;
+		attributionEnabled: boolean;
+		attributionSource: string | null;
+		attributionMedium: string | null;
+		attributionCampaign: string | null;
 		popunderSetting: {
 			enabled: boolean;
 			targetUrl: string;
@@ -88,11 +93,13 @@
 	let {
 		campaign,
 		form,
-		submitLabel = 'Create campaign'
+		submitLabel = 'Create campaign',
+		teams = []
 	}: {
 		campaign?: Campaign;
 		form?: { error?: string; validation?: { formErrors?: string[] } } | null;
 		submitLabel?: string;
+		teams?: Array<{ id: string; name: string; role: string }>;
 	} = $props();
 
 	function blankDestination(): Destination {
@@ -167,6 +174,7 @@
 	let popunderDesktopBehavior = $state<BrowserBehavior>(browserBehavior('desktop', 'inherit'));
 	let popunderMobileBehavior = $state<BrowserBehavior>(browserBehavior('mobile', 'inherit'));
 	let popunderWebviewBehavior = $state<BrowserBehavior>(browserBehavior('webview', 'same_tab'));
+	let attributionEnabled = $state(untrack(() => campaign)?.attributionEnabled ?? false);
 	let submitting = $state(false);
 
 	const selectClass =
@@ -190,7 +198,7 @@
 
 <form
 	method="POST"
-	class="mx-auto w-full max-w-6xl space-y-6"
+	class="mx-auto w-full space-y-6"
 	use:enhance={() => {
 		submitting = true;
 		return async ({ update }) => {
@@ -219,6 +227,14 @@
 			</p>
 		</div>
 		<div class="grid gap-5 md:grid-cols-2">
+			<div class="space-y-2">
+				<Label for="teamId">Ownership</Label>
+				<select id="teamId" name="teamId" class={selectClass} value={campaign?.teamId ?? ''}>
+					<option value="">Personal</option>
+					{#each teams as team (team.id)}<option value={team.id}>{team.name} ({team.role})</option
+						>{/each}
+				</select>
+			</div>
 			<div class="space-y-2">
 				<Label for="name">Campaign name</Label>
 				<Input
@@ -288,6 +304,69 @@
 					type="url"
 					value={campaign?.fallbackUrl ?? ''}
 					placeholder="https://example.com/unavailable"
+				/>
+			</div>
+		</div>
+	</section>
+
+	<section class="border-b border-border pb-6">
+		<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+			<div>
+				<h2 class="text-base font-semibold">Source attribution</h2>
+				<p class="mt-1 text-sm text-muted-foreground">UTM attribution for destination analytics.</p>
+			</div>
+			<label class="flex items-center gap-2 text-sm font-medium">
+				<input
+					type="checkbox"
+					name="attributionEnabled"
+					bind:checked={attributionEnabled}
+					class="size-4"
+				/>
+				Enabled
+			</label>
+		</div>
+		<div class="grid gap-4 md:grid-cols-3">
+			<div class="space-y-2">
+				<Label for="attributionSource">Source</Label>
+				<Input
+					id="attributionSource"
+					name="attributionSource"
+					list="attribution-source-options"
+					maxlength={100}
+					required={attributionEnabled}
+					disabled={!attributionEnabled}
+					value={campaign?.attributionSource ?? ''}
+					placeholder="google"
+				/>
+				<datalist id="attribution-source-options">
+					<option value="google"></option>
+					<option value="facebook"></option>
+					<option value="instagram"></option>
+					<option value="tiktok"></option>
+					<option value="twitter"></option>
+					<option value="email"></option>
+				</datalist>
+			</div>
+			<div class="space-y-2">
+				<Label for="attributionMedium">Medium</Label>
+				<Input
+					id="attributionMedium"
+					name="attributionMedium"
+					maxlength={100}
+					disabled={!attributionEnabled}
+					value={campaign?.attributionMedium ?? ''}
+					placeholder="paid_social"
+				/>
+			</div>
+			<div class="space-y-2">
+				<Label for="attributionCampaign">Campaign</Label>
+				<Input
+					id="attributionCampaign"
+					name="attributionCampaign"
+					maxlength={200}
+					disabled={!attributionEnabled}
+					value={campaign?.attributionCampaign ?? ''}
+					placeholder="launch_2026"
 				/>
 			</div>
 		</div>

@@ -6,7 +6,7 @@
 		{ id: 'creating-a-rotation', title: 'Creating a rotation' },
 		{ id: 'blocking-rules', title: 'Blocking rules' },
 		{ id: 'redirect-modes', title: 'Redirect modes' },
-		{ id: 'referrer-control', title: 'Referrer control' },
+		{ id: 'referrer-control', title: 'Attribution & referrer' },
 		{ id: 'playwright-verification', title: 'Playwright verification' },
 		{ id: 'api-reference', title: 'API reference' }
 	];
@@ -130,14 +130,16 @@
 
 			<div id="referrer-control">
 				<h2 class="font-display text-2xl font-semibold text-ink dark:text-paper">
-					Referrer control
+					Attribution & referrer
 				</h2>
 				<p class="mt-3 text-sm leading-relaxed text-muted-foreground">
-					Set <code class="font-mono text-ink dark:text-paper">referrer_policy</code> to
-					<code class="font-mono text-ink dark:text-paper">strip</code> to remove the referrer
-					header entirely, or <code class="font-mono text-ink dark:text-paper">custom</code> with a
-					<code class="font-mono text-ink dark:text-paper">referrer_value</code> to send a specific value
-					to every destination in the rotation.
+					Use source attribution to append <code class="font-mono text-ink dark:text-paper"
+						>utm_source</code
+					>,
+					<code class="font-mono text-ink dark:text-paper">utm_medium</code>, and
+					<code class="font-mono text-ink dark:text-paper">utm_campaign</code> to destinations. Referrer
+					policy can preserve the browser-provided value or strip it; browsers do not permit redirects
+					to impersonate another site's HTTP referrer.
 				</p>
 			</div>
 

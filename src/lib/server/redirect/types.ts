@@ -15,6 +15,8 @@ export type VisitorContext = {
 	asn: string | null;
 	isBot: boolean;
 	botScore: number;
+	riskScore: number;
+	riskReasons: string[];
 };
 
 export type RuleType =

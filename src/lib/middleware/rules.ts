@@ -5,7 +5,21 @@ export const ROLE_LEVELS = {
 } as const;
 
 export type UserRole = (typeof ROLE_LEVELS)[keyof typeof ROLE_LEVELS];
-export type PermissionCode = 'user:read' | 'user:write' | 'user:delete' | 'system:settings';
+export type PermissionCode =
+	| 'user:read'
+	| 'user:write'
+	| 'user:delete'
+	| 'system:settings'
+	| 'campaign:read'
+	| 'campaign:create'
+	| 'campaign:update'
+	| 'campaign:delete'
+	| 'analytics:read'
+	| 'rules:manage'
+	| 'safelink:manage'
+	| 'api-key:manage'
+	| 'audit:read'
+	| 'team:manage';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 export type MiddlewareRouteConfig = {
@@ -35,7 +49,7 @@ export const authRoutes = [
 
 export const protectedAppRoutes = ['/app'] as const;
 export const restrictedSuperAdminRoutes = ['/app/settings'] as const;
-export const restrictedModeratorRoutes = ['/app/users'] as const;
+export const restrictedModeratorRoutes = ['/app/users', '/app/audit'] as const;
 
 export const publicApiRoutes = ['/api/auth', '/api/public', '/api/link', '/api/embed'] as const;
 export const adminApiRoutes = ['/api/admin', '/api/setting'] as const;
@@ -48,7 +62,12 @@ export const pageRouteRules = {
 		permissions: ['system:settings']
 	},
 	'/app/users': {
-		roles: [ROLE_LEVELS.MODERATOR, ROLE_LEVELS.SUPERADMIN]
+		roles: [ROLE_LEVELS.MODERATOR, ROLE_LEVELS.SUPERADMIN],
+		permissions: ['user:read']
+	},
+	'/app/audit': {
+		roles: [ROLE_LEVELS.MODERATOR, ROLE_LEVELS.SUPERADMIN],
+		permissions: ['audit:read']
 	},
 	'/app': {
 		roles: [ROLE_LEVELS.USER, ROLE_LEVELS.MODERATOR, ROLE_LEVELS.SUPERADMIN]

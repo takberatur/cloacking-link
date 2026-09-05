@@ -8,6 +8,7 @@ import { campaigns, clickEvents, destinations, user, visitors } from '../src/lib
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
 
 const db = drizzle(neon(process.env.DATABASE_URL));
+const baseUrl = process.argv.find((value) => /^https?:\/\//.test(value)) ?? 'http://127.0.0.1:5175';
 const [owner] = await db.select({ id: user.id }).from(user).limit(1);
 if (!owner) {
 	console.log('Redirect smoke test skipped: no user exists in the database.');
@@ -40,7 +41,7 @@ try {
 		position: 0
 	});
 
-	const first = await fetch(`http://127.0.0.1:5175/r/${slug}?utm_source=smoke&tag=a&tag=b`, {
+	const first = await fetch(`${baseUrl}/r/${slug}?utm_source=smoke&tag=a&tag=b`, {
 		redirect: 'manual',
 		headers: {
 			'cf-connecting-ip': '203.0.113.10',
@@ -54,10 +55,13 @@ try {
 		'https://example.com/offer?source=owned&utm_source=smoke&tag=a&tag=b'
 	);
 	assert.ok(first.headers.get('x-request-id'));
+	assert.equal(first.headers.get('ratelimit-limit'), '120');
+	assert.ok(Number(first.headers.get('ratelimit-remaining')) >= 0);
+	assert.match(first.headers.get('server-timing') ?? '', /^total;dur=\d+$/);
 	const visitorCookie = first.headers.get('set-cookie')?.split(';')[0];
 	assert.ok(visitorCookie?.startsWith('ls_visitor='));
 
-	const blocked = await fetch(`http://127.0.0.1:5175/r/${slug}`, {
+	const blocked = await fetch(`${baseUrl}/r/${slug}`, {
 		redirect: 'manual',
 		headers: {
 			cookie: visitorCookie,
@@ -74,6 +78,8 @@ try {
 			destinationId: clickEvents.destinationId,
 			visitorId: clickEvents.visitorId,
 			isBot: clickEvents.isBot,
+			riskScore: clickEvents.riskScore,
+			metadata: clickEvents.metadata,
 			countryCode: clickEvents.countryCode
 		})
 		.from(clickEvents)
@@ -83,6 +89,15 @@ try {
 		events.some((event) => event.outcome === 'redirected' && event.destinationId === destinationId)
 	);
 	assert.ok(events.some((event) => event.outcome === 'blocked' && event.isBot));
+	assert.ok(events.some((event) => event.isBot && event.riskScore === 100));
+	assert.ok(
+		events.some(
+			(event) =>
+				event.isBot &&
+				Array.isArray((event.metadata as { riskReasons?: unknown }).riskReasons) &&
+				(event.metadata as { riskReasons: string[] }).riskReasons.includes('known_bot_user_agent')
+		)
+	);
 	assert.ok(events.every((event) => event.countryCode === 'ID'));
 	trackedVisitorIds = [...new Set(events.flatMap((event) => event.visitorId ?? []))];
 

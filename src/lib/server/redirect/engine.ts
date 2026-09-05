@@ -2,8 +2,10 @@ import { createHmac } from 'node:crypto';
 import { BETTER_AUTH_SECRET } from '$env/static/private';
 import { and, asc, count, eq, gte, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { blockRules, campaigns, clickEvents, destinations, visitors } from '$lib/server/db/schema';
-import { evaluateRules, safeExternalUrl, withQueryParams } from './rules';
+import { blockRules, clickEvents, visitors } from '$lib/server/db/schema';
+import { logEvent } from '$lib/server/observability';
+import { getRedirectCampaign } from './campaign-cache';
+import { evaluateRules, safeExternalUrl, withAttributionParams } from './rules';
 import { createPopunderPlan } from './popunder';
 import { selectDestination } from './rotation';
 import type { EvaluatedRule, VisitorContext } from './types';
@@ -19,7 +21,7 @@ export type RedirectResolution =
 			stripReferrer: boolean;
 	  }
 	| { kind: 'blocked'; status: 403; requestId: string }
-	| { kind: 'not_found'; status: 404 };
+	| { kind: 'not_found'; status: 404; requestId: string };
 
 export type ResolveRedirectInput = {
 	slug: string;
@@ -119,8 +121,10 @@ async function trackDecision(input: {
 		isUnique: visitorRow.totalVisits === 1,
 		isBot: input.visitor.isBot,
 		botScore: input.visitor.botScore,
+		riskScore: input.visitor.riskScore,
 		responseTimeMs: input.responseTimeMs,
 		queryParams: input.queryParams,
+		metadata: { riskReasons: input.visitor.riskReasons },
 		occurredAt: input.now
 	});
 }
@@ -129,18 +133,17 @@ export async function resolveRedirect(input: ResolveRedirectInput): Promise<Redi
 	const startedAt = performance.now();
 	const now = input.now ?? new Date();
 	const requestId = crypto.randomUUID();
-	const campaign = await db.query.campaigns.findFirst({
-		where: eq(campaigns.slug, input.slug),
-		with: {
-			popunderSetting: true,
-			destinations: {
-				orderBy: [asc(destinations.position)],
-				with: { geoTargets: true, deepLink: true }
-			}
-		}
-	});
+	const campaign = await getRedirectCampaign(input.slug);
 
-	if (!campaign || campaign.status !== 'active') return { kind: 'not_found', status: 404 };
+	if (!campaign || campaign.status !== 'active') {
+		return { kind: 'not_found', status: 404, requestId };
+	}
+	const attribution = {
+		enabled: campaign.attributionEnabled,
+		source: campaign.attributionSource,
+		medium: campaign.attributionMedium,
+		campaign: campaign.attributionCampaign
+	};
 
 	const rawVisitorKey =
 		input.visitorToken ||
@@ -205,7 +208,7 @@ export async function resolveRedirect(input: ResolveRedirectInput): Promise<Redi
 			});
 			return true;
 		} catch (error) {
-			console.error('Unable to persist redirect analytics', {
+			logEvent('error', 'redirect.analytics.persist_failed', {
 				requestId,
 				campaignId: campaign.id,
 				error
@@ -222,9 +225,10 @@ export async function resolveRedirect(input: ResolveRedirectInput): Promise<Redi
 		const blockRuleId = ruleDecision.matched ? ruleDecision.rule.id : null;
 		await record('blocked', null, blockRuleId);
 		if (ruleDecision.matched && ruleDecision.action === 'redirect') {
-			const location = withQueryParams(
+			const location = withAttributionParams(
 				ruleDecision.rule.redirectUrl ?? '',
-				campaign.preserveQueryParams ? input.queryParams : {}
+				campaign.preserveQueryParams ? input.queryParams : {},
+				attribution
 			);
 			if (location) {
 				return {
@@ -279,13 +283,14 @@ export async function resolveRedirect(input: ResolveRedirectInput): Promise<Redi
 		: null;
 
 	if (!selected) {
-		const fallback = withQueryParams(
+		const fallback = withAttributionParams(
 			campaign.fallbackUrl ?? '',
-			campaign.preserveQueryParams ? input.queryParams : {}
+			campaign.preserveQueryParams ? input.queryParams : {},
+			attribution
 		);
 		if (!fallback) {
 			await record('error');
-			return { kind: 'not_found', status: 404 };
+			return { kind: 'not_found', status: 404, requestId };
 		}
 		await record('fallback');
 		return {
@@ -304,13 +309,14 @@ export async function resolveRedirect(input: ResolveRedirectInput): Promise<Redi
 				safeExternalUrl(deepLink?.webFallbackUrl) ||
 				selected.url
 			: selected.url;
-	const location = withQueryParams(
+	const location = withAttributionParams(
 		rawLocation,
-		campaign.preserveQueryParams ? input.queryParams : {}
+		campaign.preserveQueryParams ? input.queryParams : {},
+		attribution
 	);
 	if (!location) {
 		await record('error', selected.id);
-		return { kind: 'not_found', status: 404 };
+		return { kind: 'not_found', status: 404, requestId };
 	}
 
 	const outcome = campaign.redirectType === 'safelink' ? 'safelink' : 'redirected';

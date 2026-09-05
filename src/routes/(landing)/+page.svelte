@@ -28,8 +28,8 @@
 		},
 		{
 			icon: Fingerprint,
-			title: 'Custom site referrer',
-			desc: 'Set the referrer header your destination sees, or strip it entirely, so downstream analytics show exactly what you intend.'
+			title: 'Source attribution',
+			desc: 'Attach campaign-level UTM source, medium, and campaign values while preserving honest visitor referrer analytics.'
 		},
 		{
 			icon: Route,
@@ -245,7 +245,7 @@
 	<div class="mx-auto max-w-3xl px-5 text-center">
 		<h2 class="font-display text-3xl font-semibold text-ink dark:text-paper">Free, on purpose</h2>
 		<p class="mx-auto mt-3 max-w-md text-muted-foreground">
-			Rotation, blocking rules, custom referrers, and Playwright verification aren't a paid tier —
+			Rotation, blocking rules, source attribution, and Playwright verification aren't a paid tier —
 			they're the product.
 		</p>
 		<div

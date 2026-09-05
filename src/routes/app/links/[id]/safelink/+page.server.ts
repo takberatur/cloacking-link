@@ -6,6 +6,7 @@ import {
 	saveSafelink,
 	unpublishSafelink
 } from '$lib/server/safelink';
+import { writeAuditLog } from '$lib/server/audit';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
 	if (!locals.user) redirect(303, '/signin');
@@ -40,6 +41,12 @@ export const actions: Actions = {
 		if (!(await saveSafelink(locals.user.id, params.id, result.input))) {
 			return fail(404, { error: 'Campaign not found' });
 		}
+		await writeAuditLog({
+			actorId: locals.user.id,
+			action: 'safelink.saved',
+			targetType: 'campaign',
+			targetId: params.id
+		});
 		redirect(303, `?saved=1`);
 	},
 	publish: async ({ locals, params, request }) => {
@@ -49,6 +56,12 @@ export const actions: Actions = {
 		if (!(await saveSafelink(locals.user.id, params.id, result.input, true))) {
 			return fail(404, { error: 'Campaign not found' });
 		}
+		await writeAuditLog({
+			actorId: locals.user.id,
+			action: 'safelink.published',
+			targetType: 'campaign',
+			targetId: params.id
+		});
 		redirect(303, `?published=1`);
 	},
 	unpublish: async ({ locals, params }) => {
@@ -56,6 +69,12 @@ export const actions: Actions = {
 		if (!(await unpublishSafelink(locals.user.id, params.id))) {
 			return fail(404, { error: 'Safelink page not found' });
 		}
+		await writeAuditLog({
+			actorId: locals.user.id,
+			action: 'safelink.unpublished',
+			targetType: 'campaign',
+			targetId: params.id
+		});
 		redirect(303, `?unpublished=1`);
 	}
 };

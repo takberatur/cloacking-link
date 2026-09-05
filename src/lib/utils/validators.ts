@@ -321,6 +321,7 @@ export const campaignDestinationSchema = z
 export const campaignSchema = z
 	.object({
 		name: z.string().trim().min(2, 'Campaign name is required').max(160),
+		teamId: z.union([z.string().uuid(), z.literal('')]).default(''),
 		slug: z
 			.string()
 			.trim()
@@ -338,6 +339,14 @@ export const campaignSchema = z
 		trackingEnabled: z.boolean().default(true),
 		preserveQueryParams: z.boolean().default(true),
 		stripReferrer: z.boolean().default(false),
+		attribution: z
+			.object({
+				enabled: z.boolean().default(false),
+				source: z.string().trim().max(100).default(''),
+				medium: z.string().trim().max(100).default(''),
+				campaign: z.string().trim().max(200).default('')
+			})
+			.default({ enabled: false, source: '', medium: '', campaign: '' }),
 		popunder: popunderSettingsSchema.default({
 			enabled: false,
 			targetUrl: undefined,
@@ -388,6 +397,14 @@ export const campaignSchema = z
 				code: 'custom',
 				path: ['trackingEnabled'],
 				message: 'Analytics tracking is required for secure popunder delivery'
+			});
+		}
+
+		if (campaign.attribution.enabled && !campaign.attribution.source) {
+			ctx.addIssue({
+				code: 'custom',
+				path: ['attribution', 'source'],
+				message: 'Attribution source is required when source attribution is enabled'
 			});
 		}
 	});

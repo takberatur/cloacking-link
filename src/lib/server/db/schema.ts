@@ -15,6 +15,12 @@ import { relations } from 'drizzle-orm';
 
 export const userRoleEnum = pgEnum('user_role', ['user', 'moderator', 'superadmin']);
 export const userStatusEnum = pgEnum('user_status', ['active', 'inactive', 'banned']);
+export const teamMemberRoleEnum = pgEnum('team_member_role', [
+	'owner',
+	'admin',
+	'member',
+	'viewer'
+]);
 export const campaignStatusEnum = pgEnum('campaign_status', [
 	'draft',
 	'active',
@@ -328,7 +334,47 @@ export const auditLogs = pgTable(
 		meta: jsonb('meta'),
 		createdAt: timestamp('created_at').notNull().defaultNow()
 	},
-	(t) => [index('audit_actor_idx').on(t.actorId, t.createdAt)]
+	(t) => [
+		index('audit_actor_idx').on(t.actorId, t.createdAt),
+		index('audit_action_created_idx').on(t.action, t.createdAt),
+		index('audit_target_idx').on(t.targetType, t.targetId, t.createdAt)
+	]
+);
+
+export const teams = pgTable(
+	'teams',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		ownerId: uuid('owner_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		name: varchar('name', { length: 120 }).notNull(),
+		slug: varchar('slug', { length: 80 }).notNull().unique(),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(t) => [index('teams_owner_idx').on(t.ownerId), index('teams_slug_idx').on(t.slug)]
+);
+
+export const teamMembers = pgTable(
+	'team_members',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		teamId: uuid('team_id')
+			.notNull()
+			.references(() => teams.id, { onDelete: 'cascade' }),
+		userId: uuid('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		role: teamMemberRoleEnum('role').notNull().default('member'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(t) => [
+		uniqueIndex('team_members_team_user_uidx').on(t.teamId, t.userId),
+		index('team_members_user_idx').on(t.userId),
+		index('team_members_team_role_idx').on(t.teamId, t.role)
+	]
 );
 
 export const campaigns = pgTable(
@@ -338,6 +384,7 @@ export const campaigns = pgTable(
 		ownerId: uuid('owner_id')
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
+		teamId: uuid('team_id').references(() => teams.id, { onDelete: 'set null' }),
 		name: varchar('name', { length: 160 }).notNull(),
 		slug: varchar('slug', { length: 120 }).notNull().unique(),
 		description: text('description'),
@@ -348,6 +395,10 @@ export const campaigns = pgTable(
 		redirectCode: integer('redirect_code').notNull().default(302),
 		preserveQueryParams: boolean('preserve_query_params').notNull().default(true),
 		stripReferrer: boolean('strip_referrer').notNull().default(false),
+		attributionEnabled: boolean('attribution_enabled').notNull().default(false),
+		attributionSource: varchar('attribution_source', { length: 100 }),
+		attributionMedium: varchar('attribution_medium', { length: 100 }),
+		attributionCampaign: varchar('attribution_campaign', { length: 200 }),
 		botProtectionEnabled: boolean('bot_protection_enabled').notNull().default(true),
 		trackingEnabled: boolean('tracking_enabled').notNull().default(true),
 		timezone: varchar('timezone', { length: 64 }).notNull().default('UTC'),
@@ -359,6 +410,7 @@ export const campaigns = pgTable(
 	},
 	(t) => [
 		index('campaigns_owner_status_idx').on(t.ownerId, t.status),
+		index('campaigns_team_status_idx').on(t.teamId, t.status),
 		index('campaigns_owner_created_at_idx').on(t.ownerId, t.createdAt),
 		index('campaigns_status_schedule_idx').on(t.status, t.startsAt, t.endsAt),
 		index('campaigns_slug_idx').on(t.slug)
@@ -638,6 +690,8 @@ export const userRelations = relations(user, ({ many }) => ({
 	apiKeys: many(apiKeys),
 	twoFactors: many(twoFactor),
 	campaigns: many(campaigns),
+	teamsOwned: many(teams),
+	teamMemberships: many(teamMembers),
 	blockRules: many(blockRules),
 	visitors: many(visitors),
 	clickEvents: many(clickEvents),
@@ -700,6 +754,10 @@ export const campaignRelations = relations(campaigns, ({ one, many }) => ({
 		fields: [campaigns.ownerId],
 		references: [user.id]
 	}),
+	team: one(teams, {
+		fields: [campaigns.teamId],
+		references: [teams.id]
+	}),
 	destinations: many(destinations),
 	blockRules: many(blockRules),
 	clickEvents: many(clickEvents),
@@ -707,6 +765,17 @@ export const campaignRelations = relations(campaigns, ({ one, many }) => ({
 	popunderSetting: one(popunderSettings),
 	embedSetting: one(campaignEmbedSettings),
 	embedEvents: many(embedEvents)
+}));
+
+export const teamRelations = relations(teams, ({ one, many }) => ({
+	owner: one(user, { fields: [teams.ownerId], references: [user.id] }),
+	members: many(teamMembers),
+	campaigns: many(campaigns)
+}));
+
+export const teamMemberRelations = relations(teamMembers, ({ one }) => ({
+	team: one(teams, { fields: [teamMembers.teamId], references: [teams.id] }),
+	user: one(user, { fields: [teamMembers.userId], references: [user.id] })
 }));
 
 export const destinationRelations = relations(destinations, ({ one, many }) => ({

@@ -69,6 +69,21 @@ try {
 	const token = script.match(/"token":"([^"]+)"/)?.[1];
 	assert.ok(token, 'Embed token not found in script');
 
+	const allowedPreflight = await fetch(`${baseUrl}/api/embed/${publicKey}/event`, {
+		method: 'OPTIONS',
+		headers: { origin: 'https://publisher.example' }
+	});
+	assert.equal(allowedPreflight.status, 204);
+	assert.equal(
+		allowedPreflight.headers.get('access-control-allow-origin'),
+		'https://publisher.example'
+	);
+	const deniedPreflight = await fetch(`${baseUrl}/api/embed/${publicKey}/event`, {
+		method: 'OPTIONS',
+		headers: { origin: 'https://attacker.example' }
+	});
+	assert.equal(deniedPreflight.status, 403);
+
 	const impression = await fetch(`${baseUrl}/api/embed/${publicKey}/event`, {
 		method: 'POST',
 		headers: {
@@ -83,6 +98,15 @@ try {
 		})
 	});
 	assert.equal(impression.status, 204);
+
+	const deniedClick = await fetch(
+		`${baseUrl}/api/embed/${publicKey}/redirect?token=${encodeURIComponent(token)}`,
+		{
+			redirect: 'manual',
+			headers: { referer: 'https://attacker.example/page' }
+		}
+	);
+	assert.equal(deniedClick.status, 403);
 
 	const click = await fetch(
 		`${baseUrl}/api/embed/${publicKey}/redirect?token=${encodeURIComponent(token)}&q=utm_source%3Dsmoke`,

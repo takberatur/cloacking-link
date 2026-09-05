@@ -16,16 +16,29 @@ function corsHeaders(origin: string | null): Record<string, string> {
 		: {};
 }
 
-export const OPTIONS: RequestHandler = async ({ request }) =>
-	new Response(null, {
+export const OPTIONS: RequestHandler = async ({ params, request }) => {
+	const sourceDomain = embedSourceDomain(request.headers);
+	const sourceOrigin = request.headers.get('origin');
+	const setting = await getPublicEmbed(params.key);
+	if (
+		!sourceDomain ||
+		!setting ||
+		!setting.enabled ||
+		setting.campaignStatus !== 'active' ||
+		!isEmbedDomainAllowed(sourceDomain, setting.allowedDomains)
+	) {
+		return new Response(null, { status: 403 });
+	}
+	return new Response(null, {
 		status: 204,
 		headers: {
-			...corsHeaders(request.headers.get('origin')),
+			...corsHeaders(sourceOrigin),
 			'Access-Control-Allow-Methods': 'POST, OPTIONS',
 			'Access-Control-Allow-Headers': 'content-type',
 			'Access-Control-Max-Age': '600'
 		}
 	});
+};
 
 export const POST: RequestHandler = async ({ params, request }) => {
 	const sourceDomain = embedSourceDomain(request.headers);
@@ -37,7 +50,11 @@ export const POST: RequestHandler = async ({ params, request }) => {
 
 	let body: { token?: unknown; type?: unknown; pageUrl?: unknown };
 	try {
-		body = await request.json();
+		const rawBody = await request.text();
+		if (rawBody.length > 8192) {
+			return new Response(null, { status: 413, headers: corsHeaders(sourceOrigin) });
+		}
+		body = JSON.parse(rawBody);
 	} catch {
 		return new Response(null, { status: 400, headers: corsHeaders(sourceOrigin) });
 	}

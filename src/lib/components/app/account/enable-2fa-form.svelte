@@ -10,11 +10,12 @@
 	import { Input } from '@/components/ui/input';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { Badge } from '@/components/ui/badge';
-	import { Button, buttonVariants } from '@/components/ui/button';
+	import { Button } from '@/components/ui/button';
 	import { Spinner } from '@/components/ui/spinner';
-	import * as Password from '$lib/components/ui/password/index.js';
+	import * as Password from '$lib/components/ui/password';
+	import * as InputOTP from '$lib/components/ui/input-otp/index.js';
 	import { confirmDelete, ConfirmDeleteDialog } from '$lib/components/ui/confirm-delete-dialog';
-
+	import { REGEXP_ONLY_DIGITS } from 'bits-ui';
 	import {
 		AlertCircleIcon,
 		CheckCircle,
@@ -29,7 +30,6 @@
 	} from '@lucide/svelte';
 	import { authClient } from '@/client/auth';
 	import { toast } from '@/stores/toast';
-	import QRCode from 'qrcode';
 
 	let {
 		user,
@@ -41,33 +41,14 @@
 
 	let passwordConfirm = $state<string>('');
 	let openConfirmEnable = $state<boolean>(false);
-	let openTotpSetup = $state<boolean>(false);
+	let openTotpSetup = $state<boolean>(true);
 	let errorMessage = $state<string | undefined>(undefined);
 	let isLoading = $state<boolean>(false);
 
-	let totpUri = $state<string>('');
-	let totpSecret = $state<string>('');
-	let totpQrCode = $state<string>('');
 	let verificationCode = $state<string>('');
 	let recoveryCodes = $state<string[]>([]);
 	let showRecoveryCodes = $state<boolean>(false);
 	let step = $state<'confirm' | 'setup' | 'verify' | 'complete'>('confirm');
-
-	// svelte-ignore state_referenced_locally
-	const { form, enhance, errors, submitting } = superForm(formData, {
-		id: 'enable-2fa-form',
-		async onSubmit(input) {
-			errorMessage = undefined;
-		},
-		async onUpdate(event) {
-			if (event.result.type === 'failure') {
-				errorMessage = event.result.data.message;
-				return;
-			}
-			toast.success(event.result.data.message ?? '2FA enabled successfully');
-			await invalidateAll();
-		}
-	});
 
 	async function handleTwoFactorChange(val: boolean) {
 		if (val === true) {
@@ -92,44 +73,13 @@
 		try {
 			const enableResult = await authClient.twoFactor.enable({
 				password: passwordConfirm,
-				method: 'totp'
+				method: 'otp'
 			});
-
-			// Eg.  "otpauth://totp/Link%20Cloacking:santisimilikiti93%40gmail.com?secret=NMWWU2RRMVJW243EMNWFUVLFGN4F65COMRSGGUTLKQ2FGNCXM5LA&issuer=Link+Cloacking&digits=6&period=30"
-
-			console.log('enableResult', enableResult);
 
 			if (enableResult.error) {
 				errorMessage = enableResult.error.message || 'Failed to enable 2FA';
 				toast.error(errorMessage);
 				return;
-			}
-
-			const totpResult = await authClient.twoFactor.getTotpUri({
-				password: passwordConfirm
-			});
-
-			if (totpResult.error) {
-				errorMessage = totpResult.error.message || 'Failed to get TOTP URI';
-				toast.error(errorMessage);
-				return;
-			}
-
-			totpUri = totpResult.data?.totpURI || '';
-
-			if (totpUri) {
-				try {
-					totpQrCode = await QRCode.toDataURL(totpUri, {
-						width: 200,
-						margin: 2,
-						color: {
-							dark: '#000000',
-							light: '#ffffff'
-						}
-					});
-				} catch (qrError) {
-					console.error('Failed to generate QR code:', qrError);
-				}
 			}
 
 			openConfirmEnable = false;
@@ -195,35 +145,31 @@
 		if (!user?.twoFactorEnabled) return;
 
 		confirmDelete({
-			title: 'Delete repository',
-			description: 'Are you sure you want to delete this repository?',
-			onConfirm: async () => {}
-		});
+			title: 'Disable 2FA',
+			description: 'Are you sure you want to disable 2FA? This will reduce your account security.',
+			onConfirm: async () => {
+				isLoading = true;
 
-		if (!confirm('Are you sure you want to disable 2FA? This will reduce your account security.')) {
-			return;
-		}
+				try {
+					const result = await authClient.twoFactor.disable({
+						password: prompt('Enter your password to confirm:') || ''
+					});
 
-		isLoading = true;
+					if (result.error) {
+						toast.error(result.error.message || 'Failed to disable 2FA');
+						return;
+					}
 
-		try {
-			const result = await authClient.twoFactor.disable({
-				password: prompt('Enter your password to confirm:') || ''
-			});
-
-			if (result.error) {
-				toast.error(result.error.message || 'Failed to disable 2FA');
-				return;
+					toast.success('2FA disabled successfully');
+					await invalidateAll();
+				} catch (error) {
+					console.error('Error disabling 2FA:', error);
+					toast.error('Failed to disable 2FA');
+				} finally {
+					isLoading = false;
+				}
 			}
-
-			toast.success('2FA disabled successfully');
-			await invalidateAll();
-		} catch (error) {
-			console.error('Error disabling 2FA:', error);
-			toast.error('Failed to disable 2FA');
-		} finally {
-			isLoading = false;
-		}
+		});
 	}
 
 	function copyRecoveryCodes() {
@@ -315,16 +261,19 @@
 			<div class="space-y-4">
 				<Field.Field>
 					<Field.Label for="password_confirm">Password</Field.Label>
-					<Input
-						bind:value={passwordConfirm}
-						type="password"
-						id="password_confirm"
-						name="password_confirm"
-						required
-						minlength={8}
-						placeholder="Enter your password"
-						disabled={isLoading}
-					/>
+					<Password.Root>
+						<Password.Input
+							bind:value={passwordConfirm}
+							id="password_confirm"
+							name="password_confirm"
+							required
+							placeholder="Enter your password"
+							disabled={isLoading}
+						>
+							<Password.ToggleVisibility />
+						</Password.Input>
+						<Password.Strength />
+					</Password.Root>
 					<Field.Description class="text-xs">
 						<Key class="inline size-3" />
 						Your password is required to enable 2FA
@@ -371,56 +320,21 @@
 	<Dialog.Content class="max-w-lg">
 		<Dialog.Header>
 			<Dialog.Title>Set Up Authenticator</Dialog.Title>
-			<Dialog.Description>
-				Scan the QR code with your authenticator app or enter the secret key manually.
-			</Dialog.Description>
+			<Dialog.Description>Enter the 6-digit OTP code we sent to your email.</Dialog.Description>
 		</Dialog.Header>
 
 		<div class="space-y-6 py-4">
 			{#if step === 'setup'}
-				<!-- QR Code Section -->
 				<div class="flex flex-col items-center space-y-4">
-					{#if totpQrCode}
-						<div class="rounded-lg border bg-white p-4">
-							<img src={totpQrCode} alt="TOTP QR Code" class="size-48" />
-						</div>
-					{:else}
-						<div class="flex size-48 items-center justify-center rounded-lg border bg-muted">
-							<Spinner class="size-8" />
-						</div>
-					{/if}
-
-					<!-- Secret Key -->
-					<div class="w-full">
-						<Field.Field>
-							<Field.Label class="text-sm font-medium">Secret Key</Field.Label>
-							<div class="flex items-center gap-2">
-								<Input value={totpSecret} readonly class="font-mono text-sm" />
-								<Button
-									type="button"
-									variant="outline"
-									size="icon"
-									onclick={() => {
-										navigator.clipboard.writeText(totpSecret);
-										toast.success('Secret key copied');
-									}}
-									title="Copy secret key"
-								>
-									<Copy class="size-4" />
-								</Button>
-							</div>
-						</Field.Field>
-					</div>
-
 					<!-- Instructions -->
 					<Alert.Root class="bg-primary/20 text-primary">
 						<Info class="size-4" />
 						<Alert.Title>How to set up</Alert.Title>
 						<Alert.Description class="space-y-1 text-sm">
 							<ol class="list-decimal space-y-1 pl-4">
-								<li>Open your authenticator app</li>
-								<li>Scan the QR code or enter the secret key manually</li>
-								<li>Enter the 6-digit verification code below</li>
+								<li>Open your email inbox</li>
+								<li>Find the email we sent to you</li>
+								<li>Enter the 6-digit OTP code below</li>
 							</ol>
 						</Alert.Description>
 					</Alert.Root>
@@ -429,24 +343,27 @@
 					<div class="w-full">
 						<Field.Field>
 							<Field.Label for="verification_code">Verification Code</Field.Label>
-							<Input
+							<InputOTP.Root
 								bind:value={verificationCode}
-								type="text"
 								id="verification_code"
 								name="verification_code"
-								required
 								maxlength={6}
-								pattern="[0-9]{6}"
-								placeholder="Enter 6-digit code"
-								class="text-center font-mono text-2xl tracking-widest"
-								disabled={isLoading}
-								oninput={(e) => {
-									// Auto-advance to next field
-									if (e.currentTarget.value.length === 6) {
+								pattern={REGEXP_ONLY_DIGITS}
+								class="justify-center"
+								onValueChange={(val) => {
+									if (val.length === 6) {
 										handleVerifyTotp();
 									}
 								}}
-							/>
+							>
+								{#snippet children({ cells })}
+									<InputOTP.Group>
+										{#each cells as cell, i (i)}
+											<InputOTP.Slot {cell} />
+										{/each}
+									</InputOTP.Group>
+								{/snippet}
+							</InputOTP.Root>
 							<Field.Description class="text-xs">
 								<Smartphone class="inline size-3" />
 								Enter the 6-digit code from your authenticator app

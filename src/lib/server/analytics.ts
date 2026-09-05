@@ -1,6 +1,7 @@
-import { and, asc, count, desc, eq, gte, lt, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { blockRules, campaigns, clickEvents, destinations } from '$lib/server/db/schema';
+import { campaignAccess } from '$lib/server/team';
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const VISITOR_PAGE_SIZE = 20;
@@ -104,7 +105,15 @@ function withRates<
 }
 
 export async function getDashboardAnalytics(ownerId: string, range: AnalyticsRange) {
-	const where = eventRange(ownerId, range);
+	const accessibleCampaigns = db
+		.select({ id: campaigns.id })
+		.from(campaigns)
+		.where(campaignAccess(ownerId));
+	const where = and(
+		inArray(clickEvents.campaignId, accessibleCampaigns),
+		gte(clickEvents.occurredAt, range.fromDate),
+		lt(clickEvents.occurredAt, range.toExclusive)
+	);
 	const day = sql<string>`(${clickEvents.occurredAt} at time zone 'UTC')::date::text`;
 	const [summaryRows, timelineRows, topCampaigns, countries, devices, browsers, activeRows] =
 		await Promise.all([
@@ -159,7 +168,7 @@ export async function getDashboardAnalytics(ownerId: string, range: AnalyticsRan
 			db
 				.select({ total: count() })
 				.from(campaigns)
-				.where(and(eq(campaigns.ownerId, ownerId), eq(campaigns.status, 'active')))
+				.where(and(campaignAccess(ownerId), eq(campaigns.status, 'active')))
 		]);
 
 	return {
@@ -180,12 +189,12 @@ export async function getCampaignAnalytics(
 	requestedPage = 1
 ) {
 	const campaign = await db.query.campaigns.findFirst({
-		where: and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, ownerId)),
-		columns: { id: true, name: true, slug: true, status: true }
+		where: and(eq(campaigns.id, campaignId), campaignAccess(ownerId)),
+		columns: { id: true, ownerId: true, name: true, slug: true, status: true }
 	});
 	if (!campaign) return null;
 
-	const where = eventRange(ownerId, range, campaignId);
+	const where = eventRange(campaign.ownerId, range, campaignId);
 	const day = sql<string>`(${clickEvents.occurredAt} at time zone 'UTC')::date::text`;
 	const [summaryRows, timelineRows, destinationRows, blockedReasons, countries, visitorCount] =
 		await Promise.all([

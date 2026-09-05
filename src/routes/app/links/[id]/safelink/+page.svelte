@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { AppSidebarLayout } from '@/components/app';
-	import SafelinkEditor from '$lib/components/app/safelink-editor.svelte';
+	import SafelinkEditorLoader from '$lib/components/app/safelink-editor-loader.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -27,7 +27,7 @@
 </script>
 
 <AppSidebarLayout page="Safelink builder" user={data.user} setting={data.setting}>
-	<form method="POST" class="mx-auto w-full max-w-7xl space-y-5 px-1 sm:px-3">
+	<form method="POST" class="space-y-5 px-2 sm:px-4">
 		<input type="hidden" name="document" value={document} />
 		<header class="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
 			<div>
@@ -89,7 +89,7 @@
 				</div>
 				<div>
 					<p class="mb-1.5 text-sm font-medium">Page content</p>
-					<SafelinkEditor
+					<SafelinkEditorLoader
 						campaignId={data.campaign.id}
 						initialDocument={data.page.document}
 						bind:document

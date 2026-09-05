@@ -63,7 +63,9 @@ async function main() {
 			{ code: 'analytics:read', description: 'View campaign and visitor analytics' },
 			{ code: 'rules:manage', description: 'Manage traffic targeting and block rules' },
 			{ code: 'safelink:manage', description: 'Create and publish safelink pages' },
-			{ code: 'api-key:manage', description: 'Create and revoke API keys' }
+			{ code: 'api-key:manage', description: 'Create and revoke API keys' },
+			{ code: 'audit:read', description: 'View administrative audit history' },
+			{ code: 'team:manage', description: 'Create teams and manage members' }
 		])
 		.onConflictDoUpdate({
 			target: schema.permission.code,

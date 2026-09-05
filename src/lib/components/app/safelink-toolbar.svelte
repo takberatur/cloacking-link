@@ -13,35 +13,73 @@
 		UnlinkIcon
 	} from '@lucide/svelte';
 	import { TOGGLE_LINK_COMMAND } from '@lexical/link';
+	import { INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND } from '@lexical/list';
+	import {
+		$createHeadingNode as createHeadingNode,
+		$createQuoteNode as createQuoteNode
+	} from '@lexical/rich-text';
+	import { $setBlocksType as setBlocksType } from '@lexical/selection';
+	import {
+		$createParagraphNode as createParagraphNode,
+		$getSelection as getSelection,
+		$isRangeSelection as isRangeSelection,
+		FORMAT_TEXT_COMMAND,
+		REDO_COMMAND,
+		UNDO_COMMAND,
+		type LexicalEditor
+	} from 'lexical';
 	import type { Snippet } from 'svelte';
 	import { getActiveEditor, getBlockType, getIsLink } from 'slx/core/composerContext.js';
-	import {
-		formatBulletList,
-		formatHeading,
-		formatNumberedList,
-		formatParagraph,
-		formatQuote,
-		redo,
-		toggleBold,
-		toggleItalic,
-		toggleStrikethrough,
-		toggleUnderline,
-		undo
-	} from 'slx/core/commands/commands.js';
 
 	const activeEditor = getActiveEditor();
 	const blockType = getBlockType();
 	const isLink = getIsLink();
 	let { children }: { children?: Snippet } = $props();
 
+	function setParagraph(editor: LexicalEditor) {
+		editor.update(() => {
+			const selection = getSelection();
+			if (isRangeSelection(selection)) {
+				setBlocksType(selection, () => createParagraphNode());
+			}
+		});
+	}
+
+	function setHeading(editor: LexicalEditor, size: 'h1' | 'h2' | 'h3') {
+		editor.update(() => {
+			const selection = getSelection();
+			if (isRangeSelection(selection)) {
+				setBlocksType(selection, () => createHeadingNode(size));
+			}
+		});
+	}
+
+	function setQuote(editor: LexicalEditor) {
+		editor.update(() => {
+			const selection = getSelection();
+			if (isRangeSelection(selection)) {
+				setBlocksType(selection, () => createQuoteNode());
+			}
+		});
+	}
+
+	function setBulletList(editor: LexicalEditor, currentBlock: string) {
+		if (currentBlock === 'bullet') setParagraph(editor);
+		else editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+	}
+
+	function setNumberedList(editor: LexicalEditor, currentBlock: string) {
+		if (currentBlock === 'number') setParagraph(editor);
+		else editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+	}
+
 	function setBlock(event: Event) {
 		const value = (event.currentTarget as HTMLSelectElement).value;
-		if (value === 'paragraph') formatParagraph($activeEditor);
-		else if (value === 'h1' || value === 'h2' || value === 'h3')
-			formatHeading($activeEditor, $blockType, value);
-		else if (value === 'bullet') formatBulletList($activeEditor, $blockType);
-		else if (value === 'number') formatNumberedList($activeEditor, $blockType);
-		else if (value === 'quote') formatQuote($activeEditor, $blockType);
+		if (value === 'paragraph') setParagraph($activeEditor);
+		else if (value === 'h1' || value === 'h2' || value === 'h3') setHeading($activeEditor, value);
+		else if (value === 'bullet') setBulletList($activeEditor, $blockType);
+		else if (value === 'number') setNumberedList($activeEditor, $blockType);
+		else if (value === 'quote') setQuote($activeEditor);
 	}
 
 	function toggleLink() {
@@ -67,14 +105,14 @@
 		class="tool-button"
 		title="Undo"
 		aria-label="Undo"
-		onclick={() => undo($activeEditor)}><Undo2Icon /></button
+		onclick={() => $activeEditor.dispatchCommand(UNDO_COMMAND, undefined)}><Undo2Icon /></button
 	>
 	<button
 		type="button"
 		class="tool-button"
 		title="Redo"
 		aria-label="Redo"
-		onclick={() => redo($activeEditor)}><Redo2Icon /></button
+		onclick={() => $activeEditor.dispatchCommand(REDO_COMMAND, undefined)}><Redo2Icon /></button
 	>
 	<span class="mx-1 h-6 w-px bg-border"></span>
 	<select
@@ -95,28 +133,31 @@
 		class="tool-button"
 		title="Bold"
 		aria-label="Bold"
-		onclick={() => toggleBold($activeEditor)}><BoldIcon /></button
+		onclick={() => $activeEditor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}><BoldIcon /></button
 	>
 	<button
 		type="button"
 		class="tool-button"
 		title="Italic"
 		aria-label="Italic"
-		onclick={() => toggleItalic($activeEditor)}><ItalicIcon /></button
+		onclick={() => $activeEditor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
+		><ItalicIcon /></button
 	>
 	<button
 		type="button"
 		class="tool-button"
 		title="Underline"
 		aria-label="Underline"
-		onclick={() => toggleUnderline($activeEditor)}><UnderlineIcon /></button
+		onclick={() => $activeEditor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline')}
+		><UnderlineIcon /></button
 	>
 	<button
 		type="button"
 		class="tool-button"
 		title="Strikethrough"
 		aria-label="Strikethrough"
-		onclick={() => toggleStrikethrough($activeEditor)}><StrikethroughIcon /></button
+		onclick={() => $activeEditor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough')}
+		><StrikethroughIcon /></button
 	>
 	<button
 		type="button"
@@ -131,21 +172,21 @@
 		class="tool-button"
 		title="Bullet list"
 		aria-label="Bullet list"
-		onclick={() => formatBulletList($activeEditor, $blockType)}><ListIcon /></button
+		onclick={() => setBulletList($activeEditor, $blockType)}><ListIcon /></button
 	>
 	<button
 		type="button"
 		class="tool-button"
 		title="Numbered list"
 		aria-label="Numbered list"
-		onclick={() => formatNumberedList($activeEditor, $blockType)}><ListOrderedIcon /></button
+		onclick={() => setNumberedList($activeEditor, $blockType)}><ListOrderedIcon /></button
 	>
 	<button
 		type="button"
 		class="tool-button"
 		title="Quote"
 		aria-label="Quote"
-		onclick={() => formatQuote($activeEditor, $blockType)}><QuoteIcon /></button
+		onclick={() => setQuote($activeEditor)}><QuoteIcon /></button
 	>
 	{@render children?.()}
 </div>

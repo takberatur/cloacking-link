@@ -22,6 +22,20 @@
       "when": 1788532442345,
       "tag": "0002_smiling_tiger_shark",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788552194764,
+      "tag": "0003_reflective_harrier",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788574187994,
+      "tag": "0004_glamorous_nitro",
+      "breakpoints": true
     }
   ]
 }

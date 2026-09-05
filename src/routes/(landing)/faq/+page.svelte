@@ -55,7 +55,7 @@
 			items: [
 				{
 					q: 'Is LinkShift really free?',
-					a: 'Yes. Rotation, blocking, custom referrers, and Playwright verification are all part of the free plan, with no link limit.'
+					a: 'Yes. Rotation, blocking, source attribution, and Playwright verification are all part of the free plan, with no link limit.'
 				},
 				{
 					q: 'How do I delete my account?',

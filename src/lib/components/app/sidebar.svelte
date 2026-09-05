@@ -4,7 +4,14 @@
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 	import { AppNavMain, AppNavUser } from '$lib/components/app/index.js';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
-	import { LayoutDashboard, UserRound, Settings, Link } from '@lucide/svelte';
+	import {
+		LayoutDashboard,
+		UserRound,
+		Settings,
+		Link,
+		ScrollText,
+		UsersRound
+	} from '@lucide/svelte';
 
 	let {
 		ref = $bindable(null),
@@ -21,6 +28,7 @@
 	let isMobilePage = new IsMobile();
 
 	const isSuperAdmin = $derived.by(() => user?.role === 'superadmin');
+	const isModerator = $derived.by(() => user?.role === 'moderator' || user?.role === 'superadmin');
 
 	const navMain: NavMenu[] = [
 		...[
@@ -33,15 +41,25 @@
 				title: 'Links',
 				url: '/app/links',
 				icon: Link
+			},
+			{
+				title: 'Teams',
+				url: '/app/teams',
+				icon: UsersRound
 			}
 		],
 		// svelte-ignore state_referenced_locally
-		...(isSuperAdmin
+		...(isModerator
 			? [
 					{
 						title: 'Users',
 						url: '/app/users',
 						icon: UserRound
+					},
+					{
+						title: 'Audit log',
+						url: '/app/audit',
+						icon: ScrollText
 					}
 				]
 			: [])

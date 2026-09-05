@@ -179,3 +179,31 @@ export function withQueryParams(
 	}
 	return url.toString();
 }
+
+export type AttributionConfig = {
+	enabled: boolean;
+	source: string | null;
+	medium: string | null;
+	campaign: string | null;
+};
+
+export function campaignQueryParams(
+	queryParams: Record<string, string | string[]>,
+	attribution: AttributionConfig
+): Record<string, string | string[]> {
+	const merged = { ...queryParams };
+	if (attribution.enabled && attribution.source?.trim()) {
+		merged.utm_source = attribution.source.trim();
+		if (attribution.medium?.trim()) merged.utm_medium = attribution.medium.trim();
+		if (attribution.campaign?.trim()) merged.utm_campaign = attribution.campaign.trim();
+	}
+	return merged;
+}
+
+export function withAttributionParams(
+	value: string,
+	queryParams: Record<string, string | string[]>,
+	attribution: AttributionConfig
+): string | null {
+	return withQueryParams(value, campaignQueryParams(queryParams, attribution));
+}

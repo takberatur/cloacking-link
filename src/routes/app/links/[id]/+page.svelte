@@ -45,7 +45,7 @@
 </script>
 
 <AppSidebarLayout page={data.campaign.name} user={data.user} setting={data.setting}>
-	<div class="mx-auto w-full max-w-6xl space-y-6 px-1 sm:px-3">
+	<div class="space-y-5 px-2 sm:px-4">
 		<div class="flex flex-wrap items-start justify-between gap-4">
 			<div>
 				<a
@@ -68,31 +68,34 @@
 				>
 			</div>
 			<div class="flex flex-wrap gap-2">
-				<Button href="/app/links/{data.campaign.id}/embed" variant="outline">
-					<Code2Icon data-icon="inline-start" /> Embed
-				</Button>
-				<Button href="/app/links/{data.campaign.id}/safelink" variant="outline">
-					<FilePenLineIcon data-icon="inline-start" /> Safelink
-				</Button>
+				{#if data.canEdit}
+					<Button href="/app/links/{data.campaign.id}/embed" variant="outline">
+						<Code2Icon data-icon="inline-start" /> Embed
+					</Button>
+					<Button href="/app/links/{data.campaign.id}/safelink" variant="outline">
+						<FilePenLineIcon data-icon="inline-start" /> Safelink
+					</Button>
+				{/if}
 				<Button type="button" variant="outline" onclick={copyPublicUrl}
 					>{#if copied}<CheckIcon data-icon="inline-start" /> Copied{:else}<CopyIcon
 							data-icon="inline-start"
 						/> Copy URL{/if}</Button
 				>
-				<form method="POST" action="?/toggleStatus" use:enhance>
-					<input
-						type="hidden"
-						name="status"
-						value={data.campaign.status === 'active' ? 'paused' : 'active'}
-					/>
-					<Button type="submit" variant="outline"
-						><PowerIcon data-icon="inline-start" />
-						{data.campaign.status === 'active' ? 'Pause' : 'Activate'}</Button
+				{#if data.canEdit}<form method="POST" action="?/toggleStatus" use:enhance>
+						<input
+							type="hidden"
+							name="status"
+							value={data.campaign.status === 'active' ? 'paused' : 'active'}
+						/>
+						<Button type="submit" variant="outline"
+							><PowerIcon data-icon="inline-start" />
+							{data.campaign.status === 'active' ? 'Pause' : 'Activate'}</Button
+						>
+					</form>
+					<Button href="/app/links/{data.campaign.id}/edit"
+						><PencilIcon data-icon="inline-start" /> Edit</Button
 					>
-				</form>
-				<Button href="/app/links/{data.campaign.id}/edit"
-					><PencilIcon data-icon="inline-start" /> Edit</Button
-				>
+				{/if}
 			</div>
 		</div>
 
@@ -205,6 +208,11 @@
 						.preserveQueryParams
 						? 'on'
 						: 'off'} · Referrer {data.campaign.stripReferrer ? 'stripped' : 'preserved'}
+				</p>
+				<p class="mt-1 text-sm text-muted-foreground">
+					Attribution {data.campaign.attributionEnabled
+						? `${data.campaign.attributionSource ?? 'custom'} / ${data.campaign.attributionMedium ?? 'unspecified'}`
+						: 'off'}
 				</p>
 			</div>
 		</section>
@@ -351,19 +359,19 @@
 			</div>
 		</section>
 
-		<div class="flex justify-end pb-6">
-			<form
-				method="POST"
-				action="?/delete"
-				onsubmit={(event) => {
-					if (!confirm(`Delete ${data.campaign.name}? This cannot be undone.`))
-						event.preventDefault();
-				}}
-			>
-				<Button type="submit" variant="destructive"
-					><Trash2Icon data-icon="inline-start" /> Delete campaign</Button
+		{#if data.canEdit}<div class="flex justify-end pb-6">
+				<form
+					method="POST"
+					action="?/delete"
+					onsubmit={(event) => {
+						if (!confirm(`Delete ${data.campaign.name}? This cannot be undone.`))
+							event.preventDefault();
+					}}
 				>
-			</form>
-		</div>
+					<Button type="submit" variant="destructive"
+						><Trash2Icon data-icon="inline-start" /> Delete campaign</Button
+					>
+				</form>
+			</div>{/if}
 	</div>
 </AppSidebarLayout>

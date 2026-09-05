@@ -4,6 +4,7 @@ import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { campaigns, clickEvents, destinationDeepLinks, destinations } from '$lib/server/db/schema';
 import { createDeepLinkPlan } from '$lib/server/redirect/deeplink';
+import { campaignQueryParams } from '$lib/server/redirect/rules';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -17,6 +18,10 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 			destinationName: destinations.name,
 			destinationUrl: destinations.url,
 			preserveQueryParams: campaigns.preserveQueryParams,
+			attributionEnabled: campaigns.attributionEnabled,
+			attributionSource: campaigns.attributionSource,
+			attributionMedium: campaigns.attributionMedium,
+			attributionCampaign: campaigns.attributionCampaign,
 			queryParams: clickEvents.queryParams,
 			os: clickEvents.os,
 			browser: clickEvents.browser,
@@ -44,12 +49,18 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 		.limit(1);
 
 	if (!entry) error(404, 'Deeplink request not found');
+	const queryParams = campaignQueryParams(entry.preserveQueryParams ? entry.queryParams : {}, {
+		enabled: entry.attributionEnabled,
+		source: entry.attributionSource,
+		medium: entry.attributionMedium,
+		campaign: entry.attributionCampaign
+	});
 	const plan = createDeepLinkPlan({
 		os: entry.os ?? 'Unknown',
 		browser: entry.browser ?? 'Unknown',
 		destinationUrl: entry.destinationUrl,
 		config: entry,
-		queryParams: entry.preserveQueryParams ? entry.queryParams : {}
+		queryParams
 	});
 
 	setHeaders({

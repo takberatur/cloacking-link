@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ImagePlusIcon, LoaderCircleIcon } from '@lucide/svelte';
 	import { getActiveEditor } from 'slx/core/composerContext.js';
-	import { InsertImage } from 'slx/core/commands/commands.js';
+	import { INSERT_IMAGE_COMMAND } from 'slx/core/plugins/Image/ImagePlugin.svelte';
 
 	let { campaignId }: { campaignId: string } = $props();
 	const activeEditor = getActiveEditor();
@@ -21,7 +21,7 @@
 			const response = await fetch('/api/user/safelink-media', { method: 'POST', body });
 			const result = await response.json();
 			if (!response.ok || !result.data?.url) throw new Error(result.message ?? 'Upload failed');
-			InsertImage($activeEditor, {
+			$activeEditor.dispatchCommand(INSERT_IMAGE_COMMAND, {
 				src: result.data.url,
 				altText: file.name.replace(/\.[^.]+$/, ''),
 				maxWidth: 960

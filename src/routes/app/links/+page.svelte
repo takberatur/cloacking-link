@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-import { SvelteURLSearchParams } from "svelte/reactivity"
+	import { SvelteURLSearchParams } from 'svelte/reactivity';
 	import { enhance } from '$app/forms';
 	import { AppSidebarLayout } from '@/components/app';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import * as Table from '$lib/components/ui/table';
-  import { confirmDelete, ConfirmDeleteDialog } from '$lib/components/ui/confirm-delete-dialog';
+	import { confirmDelete, ConfirmDeleteDialog } from '$lib/components/ui/confirm-delete-dialog';
 	import {
 		CheckIcon,
 		CopyIcon,
@@ -16,6 +16,7 @@ import { SvelteURLSearchParams } from "svelte/reactivity"
 		SearchIcon,
 		Trash2Icon
 	} from '@lucide/svelte';
+	import { alertDialog } from '@/stores/alert-dialog.svelte.js';
 
 	let { data, form } = $props();
 	let copiedCampaignId = $state<string | null>(null);
@@ -51,10 +52,30 @@ import { SvelteURLSearchParams } from "svelte/reactivity"
 			if (copiedCampaignId === campaignId) copiedCampaignId = null;
 		}, 1600);
 	}
+
+	async function handleDelete(campaign?: (typeof data.campaigns.items)[0]) {
+		if (!campaign) return;
+
+		try {
+			const res = await fetch(`/api/campaign/${campaign.id}`, {
+				method: 'DELETE',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			if (!res.ok) throw new Error(res.statusText || 'Failed to delete campaign');
+
+			data.campaigns.items = data.campaigns.items.filter((p) => p.id !== campaign.id);
+
+			await invalidateAll();
+		} catch (error) {
+			alertDialog.error(error instanceof Error ? error.message : 'Unknown error');
+		}
+	}
 </script>
 
 <AppSidebarLayout page="Campaigns" user={data.user} setting={data.setting}>
-<ConfirmDeleteDialog />
+	<ConfirmDeleteDialog />
 	<div class="space-y-5 px-1 sm:px-3">
 		<div class="flex flex-wrap items-end justify-between gap-4">
 			<div>
@@ -162,7 +183,7 @@ import { SvelteURLSearchParams } from "svelte/reactivity"
 								<div class="flex justify-end gap-1">
 									<Button
 										type="button"
-										variant="ghost"
+										variant="outline"
 										size="icon"
 										aria-label="Copy public URL"
 										title={copiedCampaignId === campaign.id ? 'Copied' : 'Copy public URL'}
@@ -172,45 +193,36 @@ import { SvelteURLSearchParams } from "svelte/reactivity"
 									>
 									<Button
 										href="/app/links/{campaign.id}"
-										variant="ghost"
+										variant="outline"
 										size="icon"
 										aria-label="View campaign"
 										title="View"><EyeIcon /></Button
 									>
 									<Button
 										href="/app/links/{campaign.id}/edit"
-										variant="ghost"
+										variant="default"
 										size="icon"
 										aria-label="Edit campaign"
 										title="Edit"><PencilIcon /></Button
 									>
-									<form
-										method="POST"
-										action="?/delete"
-										use:enhance={()=> {
-                      return async ({ update }) => {
-                       
-                         confirmDelete({
-										title: 'Delete campaign',
-										description: `Delete ${campaign.name}?`,
-										onConfirm: async () => {
-                                          await update();
-											data.campaigns.items = data.campaigns.items.filter((p) => p.id !== campaign.id);
-                      await invalidateAll()
-										}
-									});
-                      }
-                    }}
+									<Button
+										type="button"
+										variant="destructive"
+										size="icon"
+										aria-label="Delete campaign"
+										title="Delete"
+										onclick={() => {
+											confirmDelete({
+												title: 'Delete campaign',
+												description: `Delete ${campaign.name}?`,
+												onConfirm: async () => {
+													await handleDelete(campaign);
+												}
+											});
+										}}
 									>
-										<input type="hidden" name="campaignId" value={campaign.id} />
-										<Button
-											type="submit"
-											variant="ghost"
-											size="icon"
-											aria-label="Delete campaign"
-											title="Delete"><Trash2Icon /></Button
-										>
-									</form>
+										<Trash2Icon />
+									</Button>
 								</div>
 							</Table.Cell>
 						</Table.Row>

@@ -4,9 +4,11 @@ import {
 	evaluateRules,
 	ruleMatches,
 	safeExternalUrl,
+	withAttributionParams,
 	withQueryParams
 } from '../src/lib/server/redirect/rules.ts';
 import { selectDestination, stableHash } from '../src/lib/server/redirect/rotation.ts';
+import { checkMemoryRateLimit } from '../src/lib/server/redirect/rate-limit.ts';
 import type { EvaluatedRule, VisitorContext } from '../src/lib/server/redirect/types.ts';
 
 const mobileHeaders = new Headers({
@@ -14,6 +16,7 @@ const mobileHeaders = new Headers({
 	'cf-ipcountry': 'id',
 	'user-agent':
 		'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/124.0 Mobile Safari/537.36',
+	accept: 'text/html,application/xhtml+xml',
 	'accept-language': 'id-ID,id;q=0.9',
 	referer: 'https://social.example/post'
 });
@@ -24,6 +27,8 @@ assert.equal(visitor.deviceType, 'mobile');
 assert.equal(visitor.os, 'Android');
 assert.equal(visitor.browser, 'Chrome');
 assert.equal(visitor.isBot, false);
+assert.equal(visitor.riskScore, 0);
+assert.deepEqual(visitor.riskReasons, []);
 assert.deepEqual(
 	extractClientIp(new Headers({ 'x-forwarded-for': '::ffff:192.0.2.5, 10.0.0.1' })),
 	'192.0.2.5'
@@ -32,6 +37,14 @@ assert.deepEqual(
 const bot = detectVisitor(new Headers({ 'user-agent': 'Googlebot/2.1' }));
 assert.equal(bot.isBot, true);
 assert.equal(bot.botScore, 100);
+assert.equal(bot.riskScore, 100);
+assert.ok(bot.riskReasons.includes('known_bot_user_agent'));
+
+const rateKey = `test-${crypto.randomUUID()}`;
+assert.equal(checkMemoryRateLimit(rateKey, 2, 60, 1_000).allowed, true);
+assert.equal(checkMemoryRateLimit(rateKey, 2, 60, 1_001).remaining, 0);
+assert.equal(checkMemoryRateLimit(rateKey, 2, 60, 1_002).allowed, false);
+assert.equal(checkMemoryRateLimit(rateKey, 2, 60, 61_001).allowed, true);
 
 const baseRule: EvaluatedRule = {
 	id: 'rule-1',
@@ -79,6 +92,23 @@ assert.equal(
 		tag: ['one', 'two']
 	}),
 	'https://offer.example/path?source=affiliate&utm_campaign=spring&tag=one&tag=two'
+);
+
+assert.equal(
+	withAttributionParams(
+		'https://offer.example/path?utm_medium=destination',
+		{ utm_source: 'incoming', tag: 'one' },
+		{ enabled: true, source: 'facebook', medium: 'paid_social', campaign: 'launch_2026' }
+	),
+	'https://offer.example/path?utm_medium=destination&utm_source=facebook&tag=one&utm_campaign=launch_2026'
+);
+assert.equal(
+	withAttributionParams(
+		'https://offer.example/path',
+		{ utm_source: 'incoming' },
+		{ enabled: false, source: 'google', medium: 'cpc', campaign: null }
+	),
+	'https://offer.example/path?utm_source=incoming'
 );
 
 const candidates = [

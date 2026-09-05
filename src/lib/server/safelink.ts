@@ -7,10 +7,11 @@ import {
 	parseSafelinkTheme,
 	renderSafelinkDocument
 } from './safelink-document';
+import { campaignAccess } from './team';
 
 export async function getSafelinkEditor(ownerId: string, campaignId: string) {
 	const campaign = await db.query.campaigns.findFirst({
-		where: and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, ownerId)),
+		where: and(eq(campaigns.id, campaignId), campaignAccess(ownerId, true)),
 		with: { safelinkPage: true }
 	});
 	if (!campaign) return null;
@@ -74,7 +75,7 @@ export async function saveSafelink(
 	const [campaign] = await db
 		.select({ id: campaigns.id })
 		.from(campaigns)
-		.where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, ownerId)))
+		.where(and(eq(campaigns.id, campaignId), campaignAccess(ownerId, true)))
 		.limit(1);
 	if (!campaign) return null;
 
@@ -107,7 +108,7 @@ export async function unpublishSafelink(ownerId: string, campaignId: string) {
 	const [campaign] = await db
 		.select({ id: campaigns.id })
 		.from(campaigns)
-		.where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, ownerId)))
+		.where(and(eq(campaigns.id, campaignId), campaignAccess(ownerId, true)))
 		.limit(1);
 	if (!campaign) return false;
 

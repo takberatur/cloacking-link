@@ -16,7 +16,7 @@
 </script>
 
 <AppSidebarLayout page="Embed script" user={data.user} setting={data.setting}>
-	<form method="POST" action="?/save" class="mx-auto w-full max-w-5xl space-y-6 px-1 sm:px-3">
+	<form method="POST" action="?/save" class="space-y-5 px-2 sm:px-4">
 		<header class="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
 			<div>
 				<a

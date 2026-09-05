@@ -10,6 +10,8 @@ import {
 } from './db/schema';
 import { campaignSchema, type CampaignInput } from '$lib/utils/validators';
 import { generateSlug } from '$lib/utils/slug';
+import { campaignAccess, listWritableTeams } from '$lib/server/team';
+import { invalidateRedirectCampaign } from '$lib/server/redirect/campaign-cache';
 
 const PAGE_SIZE_OPTIONS = new Set([10, 20, 50]);
 
@@ -54,6 +56,7 @@ export function parseCampaignFormData(formData: FormData) {
 
 	return campaignSchema.safeParse({
 		name: stringValue(formData, 'name'),
+		teamId: stringValue(formData, 'teamId'),
 		slug: stringValue(formData, 'slug'),
 		description: stringValue(formData, 'description'),
 		status: stringValue(formData, 'status'),
@@ -64,6 +67,12 @@ export function parseCampaignFormData(formData: FormData) {
 		trackingEnabled: booleanValue(formData, 'trackingEnabled'),
 		preserveQueryParams: booleanValue(formData, 'preserveQueryParams'),
 		stripReferrer: booleanValue(formData, 'stripReferrer'),
+		attribution: {
+			enabled: booleanValue(formData, 'attributionEnabled'),
+			source: stringValue(formData, 'attributionSource'),
+			medium: stringValue(formData, 'attributionMedium'),
+			campaign: stringValue(formData, 'attributionCampaign')
+		},
 		popunder: {
 			enabled: booleanValue(formData, 'popunderEnabled'),
 			targetUrl: stringValue(formData, 'popunderTargetUrl'),
@@ -118,7 +127,7 @@ export async function listCampaigns(ownerId: string, filters: CampaignListFilter
 	const page = Math.max(1, Number(filters.page) || 1);
 	const requestedPageSize = Number(filters.pageSize) || 10;
 	const pageSize = PAGE_SIZE_OPTIONS.has(requestedPageSize) ? requestedPageSize : 10;
-	const conditions = [eq(campaigns.ownerId, ownerId)];
+	const conditions = [campaignAccess(ownerId)];
 	const query = filters.query?.trim();
 
 	if (query) {
@@ -168,10 +177,11 @@ export async function listCampaigns(ownerId: string, filters: CampaignListFilter
 	return { items, total, page: currentPage, pageSize, totalPages };
 }
 
-export async function getCampaign(ownerId: string, campaignId: string) {
+export async function getCampaign(ownerId: string, campaignId: string, write = false) {
 	return db.query.campaigns.findFirst({
-		where: and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, ownerId)),
+		where: and(eq(campaigns.id, campaignId), campaignAccess(ownerId, write)),
 		with: {
+			team: true,
 			destinations: {
 				orderBy: [asc(destinations.position)],
 				with: { geoTargets: true, deepLink: true }
@@ -202,6 +212,7 @@ async function availableSlug(requestedSlug: string): Promise<string> {
 function campaignValues(ownerId: string, input: CampaignInput, slug: string) {
 	return {
 		ownerId,
+		teamId: input.teamId || null,
 		name: input.name,
 		slug,
 		description: input.description || null,
@@ -213,11 +224,20 @@ function campaignValues(ownerId: string, input: CampaignInput, slug: string) {
 		trackingEnabled: input.trackingEnabled,
 		preserveQueryParams: input.preserveQueryParams,
 		stripReferrer: input.stripReferrer,
+		attributionEnabled: input.attribution.enabled,
+		attributionSource: input.attribution.source || null,
+		attributionMedium: input.attribution.medium || null,
+		attributionCampaign: input.attribution.campaign || null,
 		updatedAt: new Date()
 	};
 }
 
 export async function createCampaign(ownerId: string, input: CampaignInput) {
+	if (input.teamId) {
+		const writableTeams = await listWritableTeams(ownerId);
+		if (!writableTeams.some((team) => team.id === input.teamId))
+			throw new Error('TEAM_ACCESS_DENIED');
+	}
 	const campaignId = crypto.randomUUID();
 	const slug = await availableSlug(input.slug);
 	const destinationRows = input.destinations.map((destination, position) => ({
@@ -275,12 +295,18 @@ export async function createCampaign(ownerId: string, input: CampaignInput) {
 	}
 
 	await db.batch(statements as [BatchItem<'pg'>, ...BatchItem<'pg'>[]]);
+	await invalidateRedirectCampaign(slug);
 	return { id: campaignId, slug };
 }
 
 export async function updateCampaign(ownerId: string, campaignId: string, input: CampaignInput) {
-	const existing = await getCampaign(ownerId, campaignId);
+	const existing = await getCampaign(ownerId, campaignId, true);
 	if (!existing) return null;
+	if (input.teamId) {
+		const writableTeams = await listWritableTeams(ownerId);
+		if (!writableTeams.some((team) => team.id === input.teamId))
+			throw new Error('TEAM_ACCESS_DENIED');
+	}
 
 	const slug = input.slug || existing.slug;
 	const currentIds = new Set(existing.destinations.map((destination) => destination.id));
@@ -290,7 +316,7 @@ export async function updateCampaign(ownerId: string, campaignId: string, input:
 		db
 			.update(campaigns)
 			.set(campaignValues(ownerId, input, slug))
-			.where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, ownerId))),
+			.where(and(eq(campaigns.id, campaignId), campaignAccess(ownerId, true))),
 		db
 			.update(destinations)
 			.set({ position: sql`${destinations.position} + 1000` })
@@ -391,14 +417,16 @@ export async function updateCampaign(ownerId: string, campaignId: string, input:
 	});
 
 	await db.batch(statements as [BatchItem<'pg'>, ...BatchItem<'pg'>[]]);
+	await invalidateRedirectCampaign(existing.slug, slug);
 	return { id: campaignId, slug };
 }
 
 export async function deleteCampaign(ownerId: string, campaignId: string) {
 	const deleted = await db
 		.delete(campaigns)
-		.where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, ownerId)))
-		.returning({ id: campaigns.id });
+		.where(and(eq(campaigns.id, campaignId), campaignAccess(ownerId, true)))
+		.returning({ id: campaigns.id, slug: campaigns.slug });
+	await invalidateRedirectCampaign(...deleted.map((campaign) => campaign.slug));
 	return deleted.length > 0;
 }
 
@@ -415,7 +443,7 @@ export async function setCampaignStatus(
 			.where(
 				and(
 					eq(campaigns.id, campaignId),
-					eq(campaigns.ownerId, ownerId),
+					campaignAccess(ownerId, true),
 					eq(destinations.enabled, true)
 				)
 			)
@@ -426,7 +454,8 @@ export async function setCampaignStatus(
 	const updated = await db
 		.update(campaigns)
 		.set({ status, updatedAt: new Date() })
-		.where(and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, ownerId)))
-		.returning({ id: campaigns.id });
+		.where(and(eq(campaigns.id, campaignId), campaignAccess(ownerId, true)))
+		.returning({ id: campaigns.id, slug: campaigns.slug });
+	await invalidateRedirectCampaign(...updated.map((campaign) => campaign.slug));
 	return updated.length > 0;
 }

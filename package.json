@@ -28,6 +28,8 @@
 		"db:smoke:popunder": "tsx scripts/db-smoke-popunder.ts",
 		"db:smoke:redirect": "tsx scripts/db-smoke-redirect.ts",
 		"db:smoke:safelink": "tsx scripts/db-smoke-safelink.ts",
+		"db:smoke:admin-team": "tsx scripts/db-smoke-admin-team.ts",
+		"db:cleanup:analytics": "tsx scripts/cleanup-analytics.ts",
 		"test:redirect": "tsx scripts/test-redirect-engine.ts",
 		"test:deeplink": "tsx scripts/test-deeplink.ts",
 		"test:embed": "tsx scripts/test-embed.ts",
@@ -38,9 +40,11 @@
 		"@lexical/link": "0.40.0",
 		"@lexical/list": "0.40.0",
 		"@lexical/rich-text": "0.40.0",
+		"@lexical/selection": "0.40.0",
 		"@tanstack/svelte-query": "^6.1.48",
 		"@tanstack/svelte-table": "^9.2.4",
 		"lexical": "0.40.0",
+		"prismjs": "1.30.0",
 		"svelte-lexical": "^0.6.5"
 	},
 	"devDependencies": {
@@ -65,6 +69,7 @@
 		"@tailwindcss/vite": "^4.3.0",
 		"@types/node": "^24",
 		"@types/nodemailer": "^8.0.1",
+		"@types/prismjs": "1.26.6",
 		"@types/qrcode": "^1.5.6",
 		"@upstash/redis": "^1.38.3",
 		"@zxcvbn-ts/core": "^4.2.0",

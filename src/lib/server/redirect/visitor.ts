@@ -57,23 +57,55 @@ function detectDevice(userAgent: string): DeviceType {
 	return 'desktop';
 }
 
-function detectBot(userAgent: string): { isBot: boolean; botScore: number } {
-	if (!userAgent) return { isBot: true, botScore: 70 };
+function assessRisk(headers: Headers, userAgent: string) {
+	const reasons: string[] = [];
+	let score = 0;
+	let botScore = 0;
+
+	if (!userAgent) {
+		reasons.push('missing_user_agent');
+		score += 70;
+		botScore = 70;
+	}
 	if (/bot|crawler|spider|slurp|bingpreview|facebookexternalhit|whatsapp/i.test(userAgent)) {
-		return { isBot: true, botScore: 100 };
+		reasons.push('known_bot_user_agent');
+		score += 100;
+		botScore = 100;
 	}
 	if (/headlesschrome|phantomjs|selenium|playwright|puppeteer/i.test(userAgent)) {
-		return { isBot: true, botScore: 90 };
+		reasons.push('browser_automation_user_agent');
+		score += 90;
+		botScore = Math.max(botScore, 90);
 	}
 	if (/curl|wget|python-requests|httpclient|postmanruntime/i.test(userAgent)) {
-		return { isBot: true, botScore: 75 };
+		reasons.push('scripted_client_user_agent');
+		score += 75;
+		botScore = Math.max(botScore, 75);
 	}
-	return { isBot: false, botScore: 0 };
+	if (headers.get('x-purpose') === 'preview' || headers.get('purpose') === 'prefetch') {
+		reasons.push('automated_preview');
+		score += 35;
+	}
+	if (userAgent && !headers.get('accept')) {
+		reasons.push('missing_accept_header');
+		score += 10;
+	}
+	if (userAgent && !headers.get('accept-language')) {
+		reasons.push('missing_accept_language');
+		score += 5;
+	}
+
+	return {
+		isBot: botScore >= 70,
+		botScore,
+		riskScore: Math.min(100, score),
+		riskReasons: reasons
+	};
 }
 
 export function detectVisitor(headers: Headers, adapterAddress?: string | null): VisitorContext {
 	const userAgent = headers.get('user-agent')?.slice(0, 2048) ?? '';
-	const bot = detectBot(userAgent);
+	const risk = assessRisk(headers, userAgent);
 
 	return {
 		ip: extractClientIp(headers, adapterAddress),
@@ -91,6 +123,6 @@ export function detectVisitor(headers: Headers, adapterAddress?: string | null):
 		referrer: headers.get('referer')?.slice(0, 2048) ?? null,
 		language: firstHeaderValue(headers.get('accept-language'))?.slice(0, 32) ?? null,
 		asn: firstHeaderValue(headers.get('cf-asn') ?? headers.get('x-vercel-ip-as-number')),
-		...bot
+		...risk
 	};
 }

@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { BETTER_AUTH_SECRET } from '$env/static/private';
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from './db';
 import { campaignEmbedSettings, campaigns, embedEvents } from './db/schema';
@@ -12,6 +13,7 @@ import {
 	verifyEmbedTokenWithSecret,
 	type EmbedSettingsInput
 } from './embed-core';
+import { campaignAccess } from './team';
 
 export {
 	buildEmbedScript,
@@ -28,18 +30,25 @@ function publicKey(): string {
 
 export async function getEmbedEditor(ownerId: string, campaignId: string) {
 	const campaign = await db.query.campaigns.findFirst({
-		where: and(eq(campaigns.id, campaignId), eq(campaigns.ownerId, ownerId)),
+		where: and(eq(campaigns.id, campaignId), campaignAccess(ownerId, true)),
 		with: { embedSetting: true }
 	});
 	if (!campaign) return null;
 
 	let setting = campaign.embedSetting;
 	if (!setting) {
-		[setting] = await db
+		const [inserted] = await db
 			.insert(campaignEmbedSettings)
 			.values({ campaignId, publicKey: publicKey() })
+			.onConflictDoNothing({ target: campaignEmbedSettings.campaignId })
 			.returning();
+		setting =
+			inserted ??
+			(await db.query.campaignEmbedSettings.findFirst({
+				where: eq(campaignEmbedSettings.campaignId, campaignId)
+			}));
 	}
+	if (!setting) throw new Error('Unable to initialize embed settings');
 	const [totals] = await db
 		.select({
 			impressions: sql<number>`count(*) filter (where ${embedEvents.type} = 'impression')::int`,
@@ -64,7 +73,7 @@ export async function saveEmbedSettings(
 			and(
 				eq(campaignEmbedSettings.campaignId, campaignId),
 				eq(campaigns.id, campaignEmbedSettings.campaignId),
-				eq(campaigns.ownerId, ownerId)
+				campaignAccess(ownerId, true)
 			)
 		)
 		.returning({ id: campaignEmbedSettings.id });
@@ -80,7 +89,7 @@ export async function rotateEmbedPublicKey(ownerId: string, campaignId: string):
 			and(
 				eq(campaignEmbedSettings.campaignId, campaignId),
 				eq(campaigns.id, campaignEmbedSettings.campaignId),
-				eq(campaigns.ownerId, ownerId)
+				campaignAccess(ownerId, true)
 			)
 		)
 		.returning({ id: campaignEmbedSettings.id });
@@ -110,9 +119,8 @@ export async function getPublicEmbed(publicKeyValue: string) {
 }
 
 function signingSecret(): string {
-	const secret = process.env.BETTER_AUTH_SECRET;
-	if (!secret) throw new Error('BETTER_AUTH_SECRET is not set');
-	return secret;
+	if (!BETTER_AUTH_SECRET) throw new Error('BETTER_AUTH_SECRET is not set');
+	return BETTER_AUTH_SECRET;
 }
 
 export function createEmbedToken(key: string, domain: string, now = new Date()): string {
