@@ -13,13 +13,6 @@ export const load: PageServerLoad = async ({ params, url, setHeaders }) => {
 	const requestId = url.searchParams.get('rid');
 	if (!requestId || !UUID_PATTERN.test(requestId)) error(404, 'Safelink request not found');
 
-	const userAgent = request.headers.get('user-agent') || '';
-	const clientIp =
-		request.headers.get('cf-connecting-ip') ||
-		request.headers.get('x-forwarded-for') ||
-		'127.0.0.1';
-	const userCountry = request.headers.get('cf-ipcountry') || 'US';
-
 	const [entry] = await db
 		.select({
 			campaignName: campaigns.name,

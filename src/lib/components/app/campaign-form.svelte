@@ -376,7 +376,7 @@
 		<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
 			<div>
 				<h2 class="flex items-center gap-2 text-base font-semibold">
-					<ExternalLinkIcon class="size-4" /> Second target
+					<ExternalLinkIcon class="size-4" /> Popunder delivery
 				</h2>
 				<p class="mt-1 text-sm text-muted-foreground">
 					Open a secondary URL from a visitor-confirmed click.
@@ -389,7 +389,7 @@
 					bind:checked={popunderEnabled}
 					class="size-4"
 				/>
-				Enable
+				Enable popunder
 			</label>
 		</div>
 

@@ -15,6 +15,101 @@ function requestQuery(url: URL): Record<string, string | string[]> {
 	return values;
 }
 
+function renderZeroUiAutoRedirect(input: {
+	primaryUrl: string;
+	secondTarget: {
+		targetUrl: string;
+		behavior: string;
+		delayMs: number;
+		frequencyCap: number;
+		frequencyWindowHours: number;
+		campaignId: string;
+	};
+	stripReferrer: boolean;
+}): string {
+	const jsonConfig = JSON.stringify(input);
+	return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex,nofollow">
+${input.stripReferrer ? '<meta name="referrer" content="no-referrer">' : ''}
+<title>Redirecting...</title>
+<style>body{margin:0;padding:0;background:transparent;overflow:hidden;}</style>
+</head>
+<body>
+<script>
+(function() {
+	var cfg = ${jsonConfig};
+	var primary = cfg.primaryUrl;
+	var sec = cfg.secondTarget;
+	var capKey = "ls:popunder:" + sec.campaignId;
+	function goPrimary() {
+		window.location.replace(primary);
+	}
+	// 1. Evaluasi Frequency Cap di LocalStorage
+	var allowSecond = true;
+	try {
+		var history = JSON.parse(localStorage.getItem(capKey) || "[]");
+		var cutoff = Date.now() - (sec.frequencyWindowHours * 3600000);
+		var valid = history.filter(function(ts) { return typeof ts === "number" && ts >= cutoff; });
+		if (valid.length >= sec.frequencyCap) {
+			allowSecond = false;
+		} else {
+			valid.push(Date.now());
+			localStorage.setItem(capKey, JSON.stringify(valid));
+		}
+	} catch (e) {
+		allowSecond = true;
+	}
+	if (!allowSecond) {
+		goPrimary();
+		return;
+	}
+	// 2. Eksekusi sesuai Behavior yang dipilih
+	if (sec.behavior === 'same_tab') {
+		// History Trapping: Saat user menekan tombol Back, Second Target URL akan terbuka
+		try {
+			history.replaceState(null, '', sec.targetUrl);
+			history.pushState(null, '', window.location.href);
+		} catch(e) {}
+		goPrimary();
+	} else if (sec.behavior === 'new_tab') {
+		// Buka Second Target di tab baru, tab utama ke destinasi rotator
+		try {
+			var w = window.open(sec.targetUrl, '_blank');
+			if (w) w.opener = null;
+		} catch (e) {}
+		if (sec.delayMs > 0) {
+			setTimeout(goPrimary, sec.delayMs);
+		} else {
+			goPrimary();
+		}
+	} else if (sec.behavior === 'background') {
+		// Buka destinasi utama di tab baru, tab ini membuka Second Target URL
+		try {
+			var w = window.open(primary, '_blank');
+			if (w) {
+				w.opener = null;
+				if (sec.delayMs > 0) {
+					setTimeout(function() { window.location.replace(sec.targetUrl); }, sec.delayMs);
+				} else {
+					window.location.replace(sec.targetUrl);
+				}
+				return;
+			}
+		} catch (e) {}
+		// Fallback jika popup blocker aktif
+		goPrimary();
+	} else {
+		goPrimary();
+	}
+})();
+</script>
+</body>
+</html>`;
+}
+
 export async function handlePublicRedirect(event: RequestEvent, slug: string) {
 	const { request, url, cookies, getClientAddress } = event;
 	const startedAt = performance.now();
@@ -94,6 +189,7 @@ export async function handlePublicRedirect(event: RequestEvent, slug: string) {
 			}
 		});
 	}
+	
 	if (resolution.kind === 'blocked') {
 		return new Response('This request is not eligible for this link.', {
 			status: resolution.status,
@@ -101,6 +197,24 @@ export async function handlePublicRedirect(event: RequestEvent, slug: string) {
 				...responseHeaders,
 				'Cache-Control': 'no-store',
 				'X-Robots-Tag': 'noindex, nofollow'
+			}
+		});
+	}
+
+	if (resolution.kind === 'direct_with_second_target') {
+		const html = renderZeroUiAutoRedirect({
+			primaryUrl: resolution.primaryUrl,
+			secondTarget: resolution.secondTarget,
+			stripReferrer: resolution.stripReferrer
+		});
+		return new Response(html, {
+			status: 200,
+			headers: {
+				...responseHeaders,
+				'Content-Type': 'text/html; charset=utf-8',
+				'Cache-Control': 'private, no-store',
+				'X-Robots-Tag': 'noindex, nofollow',
+				...(resolution.stripReferrer ? { 'Referrer-Policy': 'no-referrer' } : {})
 			}
 		});
 	}

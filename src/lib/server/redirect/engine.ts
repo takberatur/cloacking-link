@@ -20,6 +20,20 @@ export type RedirectResolution =
 			requestId: string;
 			stripReferrer: boolean;
 	  }
+			| {
+						kind: 'direct_with_second_target';
+						primaryUrl: string;
+						secondTarget: {
+							targetUrl: string;
+							behavior: 'background' | 'new_tab' | 'same_tab';
+							delayMs: number;
+							frequencyCap: number;
+							frequencyWindowHours: number;
+							campaignId: string;
+						};
+						requestId: string;
+						stripReferrer: boolean;
+				  }
 	| { kind: 'blocked'; status: 403; requestId: string }
 	| { kind: 'not_found'; status: 404; requestId: string };
 
@@ -321,12 +335,14 @@ export async function resolveRedirect(input: ResolveRedirectInput): Promise<Redi
 
 	const outcome = campaign.redirectType === 'safelink' ? 'safelink' : 'redirected';
 	const tracked = await record(outcome, selected.id);
+	
 	const primaryLocation =
 		campaign.redirectType === 'safelink' && tracked
 			? `/s/${encodeURIComponent(campaign.slug)}?rid=${encodeURIComponent(requestId)}`
 			: campaign.redirectType === 'deeplink' && tracked && selected.deepLink
 				? `/d/${encodeURIComponent(campaign.slug)}?rid=${encodeURIComponent(requestId)}`
 				: location;
+	
 	const popunderPlan = campaign.popunderSetting
 		? createPopunderPlan({
 				enabled: campaign.popunderSetting.enabled,
@@ -340,12 +356,31 @@ export async function resolveRedirect(input: ResolveRedirectInput): Promise<Redi
 				deviceType: input.visitor.deviceType
 			})
 		: null;
+
+	if (campaign.redirectType !== 'safelink' && popunderPlan && tracked) {
+		return {
+			kind: 'direct_with_second_target',
+			primaryUrl: primaryLocation,
+			secondTarget: {
+				targetUrl: popunderPlan.targetUrl,
+				behavior: popunderPlan.behavior,
+				delayMs: popunderPlan.delayMs,
+				frequencyCap: popunderPlan.frequencyCap,
+				frequencyWindowHours: popunderPlan.frequencyWindowHours,
+				campaignId: campaign.id
+			},
+			requestId,
+			stripReferrer: campaign.stripReferrer
+		};
+	}
+	
 	return {
 		kind: 'redirect',
-		location:
-			popunderPlan && tracked
-				? `/p/${encodeURIComponent(campaign.slug)}?rid=${encodeURIComponent(requestId)}`
-				: primaryLocation,
+		location: primaryLocation,
+		// location:
+		// 	popunderPlan && tracked
+		// 		? `/p/${encodeURIComponent(campaign.slug)}?rid=${encodeURIComponent(requestId)}`
+		// 		: primaryLocation,
 		status: validRedirectCode(campaign.redirectCode),
 		requestId,
 		stripReferrer: campaign.stripReferrer
