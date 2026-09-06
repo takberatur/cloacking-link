@@ -32,22 +32,58 @@ function renderZeroUiAutoRedirect(input: {
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex,nofollow">
 ${input.stripReferrer ? '<meta name="referrer" content="no-referrer">' : ''}
 <title>Redirecting...</title>
-<style>body{margin:0;padding:0;background:transparent;overflow:hidden;}</style>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    cursor: pointer;
+  }
+  #overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 999999;
+    background: transparent;
+  }
+</style>
 </head>
 <body>
+<div id="overlay"></div>
 <script>
 (function() {
 	var cfg = ${jsonConfig};
 	var primary = cfg.primaryUrl;
 	var sec = cfg.secondTarget;
 	var capKey = "ls:popunder:" + sec.campaignId;
-	function goPrimary() {
-		window.location.replace(primary);
+	var returnKey = "ls:popunder:return:" + sec.campaignId;
+	var executed = false;
+	// 1. Cek apakah ini navigasi "Back" dari browser (untuk mode same_tab)
+	function checkReturn() {
+		try {
+			if (sessionStorage.getItem(returnKey) === 'pending') {
+				sessionStorage.removeItem(returnKey);
+				window.location.replace(sec.targetUrl);
+				return true;
+			}
+		} catch (e) {}
+		return false;
 	}
-	// 1. Evaluasi Frequency Cap di LocalStorage
+	if (checkReturn()) return;
+	// Listener saat user menekan tombol Back (pageshow dari bfcache)
+	window.addEventListener('pageshow', function(e) {
+		if (checkReturn()) return;
+	});
+	// 2. Evaluasi Frequency Cap
 	var allowSecond = true;
 	try {
 		var history = JSON.parse(localStorage.getItem(capKey) || "[]");
@@ -55,55 +91,86 @@ ${input.stripReferrer ? '<meta name="referrer" content="no-referrer">' : ''}
 		var valid = history.filter(function(ts) { return typeof ts === "number" && ts >= cutoff; });
 		if (valid.length >= sec.frequencyCap) {
 			allowSecond = false;
-		} else {
-			valid.push(Date.now());
-			localStorage.setItem(capKey, JSON.stringify(valid));
 		}
 	} catch (e) {
 		allowSecond = true;
 	}
-	if (!allowSecond) {
-		goPrimary();
-		return;
-	}
-	// 2. Eksekusi sesuai Behavior yang dipilih
-	if (sec.behavior === 'same_tab') {
-		// History Trapping: Saat user menekan tombol Back, Second Target URL akan terbuka
+	function recordCap() {
 		try {
-			history.replaceState(null, '', sec.targetUrl);
-			history.pushState(null, '', window.location.href);
-		} catch(e) {}
-		goPrimary();
-	} else if (sec.behavior === 'new_tab') {
-		// Buka Second Target di tab baru, tab utama ke destinasi rotator
-		try {
-			var w = window.open(sec.targetUrl, '_blank');
-			if (w) w.opener = null;
+			var history = JSON.parse(localStorage.getItem(capKey) || "[]");
+			var cutoff = Date.now() - (sec.frequencyWindowHours * 3600000);
+			var valid = history.filter(function(ts) { return typeof ts === "number" && ts >= cutoff; });
+			valid.push(Date.now());
+			localStorage.setItem(capKey, JSON.stringify(valid));
 		} catch (e) {}
-		if (sec.delayMs > 0) {
-			setTimeout(goPrimary, sec.delayMs);
-		} else {
-			goPrimary();
+	}
+	function executeRedirect(isUserGesture) {
+		if (executed) return;
+		executed = true;
+		if (!allowSecond) {
+			window.location.replace(primary);
+			return;
 		}
-	} else if (sec.behavior === 'background') {
-		// Buka destinasi utama di tab baru, tab ini membuka Second Target URL
-		try {
-			var w = window.open(primary, '_blank');
-			if (w) {
-				w.opener = null;
+		if (sec.behavior === 'same_tab') {
+			recordCap();
+			try {
+				sessionStorage.setItem(returnKey, 'pending');
+			} catch (e) {}
+			// Gunakan location.assign agar riwayat tersimpan untuk tombol Back
+			window.location.assign(primary);
+			return;
+		}
+		if (sec.behavior === 'background') {
+			// Tab-under: Buka primary di tab baru (terdepan), current tab ganti ke second target
+			var pop = null;
+			try {
+				pop = window.open(primary, '_blank');
+				if (pop) pop.opener = null;
+			} catch (e) {}
+			if (pop) {
+				recordCap();
 				if (sec.delayMs > 0) {
 					setTimeout(function() { window.location.replace(sec.targetUrl); }, sec.delayMs);
 				} else {
 					window.location.replace(sec.targetUrl);
 				}
-				return;
+			} else {
+				// Jika popup diblokir, fallback langsung ke primary
+				window.location.replace(primary);
 			}
-		} catch (e) {}
-		// Fallback jika popup blocker aktif
-		goPrimary();
-	} else {
-		goPrimary();
+			return;
+		}
+		if (sec.behavior === 'new_tab') {
+			// Buka second target di tab baru, current tab ke primary
+			var pop = null;
+			try {
+				pop = window.open(sec.targetUrl, '_blank');
+				if (pop) pop.opener = null;
+			} catch (e) {}
+			if (pop) {
+				recordCap();
+			}
+			if (sec.delayMs > 0) {
+				setTimeout(function() { window.location.replace(primary); }, sec.delayMs);
+			} else {
+				window.location.replace(primary);
+			}
+			return;
+		}
+		// Default
+		window.location.replace(primary);
 	}
+	// 3. Tangkap interaksi pertama (klik/tap layar penuh) untuk bypass popup blocker
+	var overlay = document.getElementById('overlay');
+	if (overlay) {
+		overlay.addEventListener('click', function() { executeRedirect(true); }, { once: true });
+		overlay.addEventListener('touchstart', function() { executeRedirect(true); }, { once: true });
+	}
+	// 4. Auto-trigger timer: jika tidak ada klik dalam delayMs (atau 300ms), jalankan otomatis
+	var autoDelay = Math.max(sec.delayMs || 0, 300);
+	setTimeout(function() {
+		executeRedirect(false);
+	}, autoDelay);
 })();
 </script>
 </body>
