@@ -12,8 +12,10 @@
 		CheckIcon,
 		Code2Icon,
 		CopyIcon,
+		CopyPlusIcon,
 		ExternalLinkIcon,
 		FilePenLineIcon,
+		FlaskConicalIcon,
 		PencilIcon,
 		PowerIcon,
 		Trash2Icon
@@ -69,6 +71,11 @@
 			</div>
 			<div class="flex flex-wrap gap-2">
 				{#if data.canEdit}
+					<form method="POST" action="?/duplicate">
+						<Button type="submit" variant="outline"
+							><CopyPlusIcon data-icon="inline-start" /> Duplicate</Button
+						>
+					</form>
 					<Button href="/app/links/{data.campaign.id}/embed" variant="outline">
 						<Code2Icon data-icon="inline-start" /> Embed
 					</Button>
@@ -76,6 +83,9 @@
 						<FilePenLineIcon data-icon="inline-start" /> Safelink
 					</Button>
 				{/if}
+				<Button href="/app/links/{data.campaign.id}/simulate" variant="outline">
+					<FlaskConicalIcon data-icon="inline-start" /> Test rules
+				</Button>
 				<Button type="button" variant="outline" onclick={copyPublicUrl}
 					>{#if copied}<CheckIcon data-icon="inline-start" /> Copied{:else}<CopyIcon
 							data-icon="inline-start"

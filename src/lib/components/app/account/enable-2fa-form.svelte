@@ -41,7 +41,7 @@
 
 	let passwordConfirm = $state<string>('');
 	let openConfirmEnable = $state<boolean>(false);
-	let openTotpSetup = $state<boolean>(true);
+	let openTotpSetup = $state<boolean>(false);
 	let errorMessage = $state<string | undefined>(undefined);
 	let isLoading = $state<boolean>(false);
 

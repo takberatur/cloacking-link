@@ -86,6 +86,11 @@ export const popunderBehaviorEnum = pgEnum('popunder_behavior', [
 	'same_tab'
 ]);
 export const embedEventTypeEnum = pgEnum('embed_event_type', ['impression', 'click']);
+export const campaignDomainStatusEnum = pgEnum('campaign_domain_status', [
+	'pending',
+	'verified',
+	'disabled'
+]);
 
 export const user = pgTable(
 	'user',
@@ -448,6 +453,32 @@ export const destinations = pgTable(
 	]
 );
 
+export const campaignDomains = pgTable(
+	'campaign_domains',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		campaignId: uuid('campaign_id')
+			.notNull()
+			.references(() => campaigns.id, { onDelete: 'cascade' }),
+		ownerId: uuid('owner_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		hostname: varchar('hostname', { length: 253 }).notNull(),
+		status: campaignDomainStatusEnum('status').notNull().default('pending'),
+		verificationToken: varchar('verification_token', { length: 96 }).notNull(),
+		verifiedAt: timestamp('verified_at', { withTimezone: true }),
+		lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+	},
+	(t) => [
+		uniqueIndex('campaign_domains_hostname_uidx').on(t.hostname),
+		uniqueIndex('campaign_domains_verification_token_uidx').on(t.verificationToken),
+		index('campaign_domains_campaign_idx').on(t.campaignId),
+		index('campaign_domains_owner_status_idx').on(t.ownerId, t.status)
+	]
+);
+
 export const destinationGeoTargets = pgTable(
 	'destination_geo_targets',
 	{
@@ -695,7 +726,8 @@ export const userRelations = relations(user, ({ many }) => ({
 	blockRules: many(blockRules),
 	visitors: many(visitors),
 	clickEvents: many(clickEvents),
-	embedEvents: many(embedEvents)
+	embedEvents: many(embedEvents),
+	campaignDomains: many(campaignDomains)
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -764,7 +796,16 @@ export const campaignRelations = relations(campaigns, ({ one, many }) => ({
 	safelinkPage: one(safelinkPages),
 	popunderSetting: one(popunderSettings),
 	embedSetting: one(campaignEmbedSettings),
-	embedEvents: many(embedEvents)
+	embedEvents: many(embedEvents),
+	domains: many(campaignDomains)
+}));
+
+export const campaignDomainRelations = relations(campaignDomains, ({ one }) => ({
+	campaign: one(campaigns, {
+		fields: [campaignDomains.campaignId],
+		references: [campaigns.id]
+	}),
+	owner: one(user, { fields: [campaignDomains.ownerId], references: [user.id] })
 }));
 
 export const teamRelations = relations(teams, ({ one, many }) => ({

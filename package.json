@@ -29,6 +29,7 @@
 		"db:smoke:redirect": "tsx scripts/db-smoke-redirect.ts",
 		"db:smoke:safelink": "tsx scripts/db-smoke-safelink.ts",
 		"db:smoke:admin-team": "tsx scripts/db-smoke-admin-team.ts",
+		"db:smoke:phase11": "tsx scripts/db-smoke-phase11.ts",
 		"db:cleanup:analytics": "tsx scripts/cleanup-analytics.ts",
 		"test:redirect": "tsx scripts/test-redirect-engine.ts",
 		"test:deeplink": "tsx scripts/test-deeplink.ts",

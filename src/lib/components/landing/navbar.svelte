@@ -3,6 +3,12 @@
 	import { Button } from '$lib/components/ui/button/index';
 	import { Menu, X, Rocket } from '@lucide/svelte';
 
+	let {
+		user
+	}: {
+		user?: User | null;
+	} = $props();
+
 	let mobileOpen = $state(false);
 
 	const links = [
@@ -35,10 +41,14 @@
 
 		<div class="hidden items-center gap-3 md:flex">
 			<LightSwitch />
-			<Button href="/signin" variant="outline" size="lg">Sign in</Button>
-			<Button href="/signup" variant="default" size="lg">
-				<Rocket /> Start free</Button
-			>
+			{#if user}
+				<Button href="/app" variant="default" size="lg">Dashboard</Button>
+			{:else}
+				<Button href="/signin" variant="outline" size="lg">Sign in</Button>
+				<Button href="/signup" variant="default" size="lg">
+					<Rocket /> Start free</Button
+				>
+			{/if}
 		</div>
 
 		<div class="flex items-center gap-2 md:hidden">
@@ -67,10 +77,14 @@
 					</a>
 				{/each}
 				<div class="mt-2 flex gap-3">
-					<Button href="/signin" variant="outline" size="lg" class="flex-1">Sign in</Button>
-					<Button href="/signup" variant="default" size="lg" class="flex-1">
-						<Rocket /> Start free
-					</Button>
+					{#if user}
+						<Button href="/app" variant="default" size="lg">Dashboard</Button>
+					{:else}
+						<Button href="/signin" variant="outline" size="lg" class="flex-1">Sign in</Button>
+						<Button href="/signup" variant="default" size="lg" class="flex-1">
+							<Rocket /> Start free
+						</Button>
+					{/if}
 				</div>
 			</nav>
 		</div>

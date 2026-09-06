@@ -54,6 +54,8 @@
 		id: 'update-profile-form',
 		async onSubmit(input) {
 			errorMessage = undefined;
+			$form.email = user?.email || '';
+			$form.username = user?.username || '';
 		},
 		async onUpdate(event) {
 			if (event.result.type === 'failure') {
@@ -64,6 +66,15 @@
 			await invalidateAll();
 		}
 	});
+
+	function handlePhoneChange(value: string | undefined) {
+		if (value) {
+			const cleanNumber = value.replace(/[\s-]/g, '');
+			$form.phone = cleanNumber;
+		} else {
+			$form.phone = '';
+		}
+	}
 
 	$effect(() => {
 		if (formData.data.phone && !phoneInput) {
@@ -247,7 +258,8 @@
 						name="username"
 						placeholder="Your username"
 						autocomplete="username"
-						disabled
+						disabled={$submitting}
+						readonly
 					/>
 					{#if $errors.username}
 						<Field.Error>{$errors.username}</Field.Error>
@@ -260,7 +272,8 @@
 						name="email"
 						placeholder="Your email"
 						autocomplete="email"
-						disabled
+						disabled={$submitting}
+						readonly
 					/>
 					{#if $errors.email}
 						<Field.Error>{$errors.email}</Field.Error>

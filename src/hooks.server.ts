@@ -25,6 +25,16 @@ import {
 } from '$lib/middleware/rules';
 
 import { ServiceHelper } from '@/server/helper';
+import { resolveCustomDomain } from '$lib/server/custom-domain';
+import { handlePublicRedirect } from '$lib/server/redirect/http';
+
+const handleCustomDomains: Handle = async ({ event, resolve }) => {
+	if (!building && event.request.method === 'GET' && event.url.pathname === '/') {
+		const slug = await resolveCustomDomain(event.url.hostname);
+		if (slug) return handlePublicRedirect(event, slug);
+	}
+	return resolve(event);
+};
 
 const getUserPermissionCodes = async (userId: string): Promise<string[]> => {
 	const permissions = await db
@@ -159,4 +169,4 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	return svelteKitHandler({ event, resolve, auth, building });
 };
 
-export const handle: Handle = sequence(initServer, handleBetterAuth);
+export const handle: Handle = sequence(handleCustomDomains, initServer, handleBetterAuth);

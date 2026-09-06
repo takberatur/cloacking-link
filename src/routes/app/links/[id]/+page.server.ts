@@ -1,6 +1,11 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { deleteCampaign, getCampaign, setCampaignStatus } from '$lib/server/campaign';
+import {
+	deleteCampaign,
+	duplicateCampaign,
+	getCampaign,
+	setCampaignStatus
+} from '$lib/server/campaign';
 import { getCampaignAnalytics, parseAnalyticsRange } from '$lib/server/analytics';
 import { writeAuditLog } from '$lib/server/audit';
 
@@ -31,6 +36,19 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 };
 
 export const actions: Actions = {
+	duplicate: async ({ locals, params }) => {
+		if (!locals.user) return fail(401, { error: 'Authentication required' });
+		const duplicate = await duplicateCampaign(locals.user.id, params.id);
+		if (!duplicate) return fail(404, { error: 'Campaign not found' });
+		await writeAuditLog({
+			actorId: locals.user.id,
+			action: 'campaign.duplicated',
+			targetType: 'campaign',
+			targetId: duplicate.id,
+			meta: { sourceCampaignId: params.id }
+		});
+		redirect(303, `/app/links/${duplicate.id}/edit?duplicated=1`);
+	},
 	delete: async ({ locals, params }) => {
 		if (!locals.user) return fail(401, { error: 'Authentication required' });
 		const deleted = await deleteCampaign(locals.user.id, params.id);

@@ -10,7 +10,8 @@
 		Settings,
 		Link,
 		ScrollText,
-		UsersRound
+		UsersRound,
+		Globe2
 	} from '@lucide/svelte';
 
 	let {
@@ -46,6 +47,11 @@
 				title: 'Teams',
 				url: '/app/teams',
 				icon: UsersRound
+			},
+			{
+				title: 'Domains',
+				url: '/app/domains',
+				icon: Globe2
 			}
 		],
 		// svelte-ignore state_referenced_locally

@@ -111,11 +111,23 @@ export type TwoFactorInput = z.infer<typeof twoFactorSchema>;
 // Account & Security
 // ========================
 export const updateProfileSchema = z.object({
-	name: z.string().min(1),
-	username: z.string().min(1),
-	email: z.string().email('Invalid email').min(1),
-	phone: z.string().optional()
+	name: z.string().min(1, 'Name is required'),
+	username: z
+		.string()
+		.min(3, 'Username must be at least 3 characters')
+		.max(30, 'Username must be at most 30 characters')
+		.regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+	email: z.string().min(1, 'Email is required').email('Invalid email format'),
+	phone: z
+		.string()
+		.optional()
+		.refine(
+			(val) => !val || val.replace(/[\s-]/g, '').length >= 10,
+			'Phone number must be at least 10 digits'
+		)
+		.transform((val) => (val ? val.replace(/[\s-]/g, '') : ''))
 });
+
 export const changePasswordSchema = z
 	.object({
 		currentPassword: z.string().min(1),

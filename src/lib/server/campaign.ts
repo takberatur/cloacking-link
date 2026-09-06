@@ -2,11 +2,13 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'dr
 import type { BatchItem } from 'drizzle-orm/batch';
 import { db } from './db';
 import {
+	blockRules,
 	campaigns,
 	destinationDeepLinks,
 	destinationGeoTargets,
 	destinations,
-	popunderSettings
+	popunderSettings,
+	safelinkPages
 } from './db/schema';
 import { campaignSchema, type CampaignInput } from '$lib/utils/validators';
 import { generateSlug } from '$lib/utils/slug';
@@ -207,6 +209,152 @@ async function availableSlug(requestedSlug: string): Promise<string> {
 	}
 
 	throw new Error('Unable to generate an available campaign slug');
+}
+
+async function availableCopySlug(sourceSlug: string) {
+	const base = `${sourceSlug.slice(0, 108)}-copy`;
+	for (let attempt = 0; attempt < 100; attempt += 1) {
+		const slug = attempt === 0 ? base : `${base}-${attempt + 1}`;
+		const [existing] = await db
+			.select({ id: campaigns.id })
+			.from(campaigns)
+			.where(eq(campaigns.slug, slug))
+			.limit(1);
+		if (!existing) return slug;
+	}
+	throw new Error('Unable to generate a duplicate campaign slug');
+}
+
+export async function duplicateCampaign(userId: string, sourceCampaignId: string) {
+	const source = await getCampaign(userId, sourceCampaignId, true);
+	if (!source) return null;
+	const campaignId = crypto.randomUUID();
+	const slug = await availableCopySlug(source.slug);
+	const destinationMap = new Map<string, string>();
+	const destinationRows = source.destinations.map((destination) => {
+		const id = crypto.randomUUID();
+		destinationMap.set(destination.id, id);
+		return {
+			id,
+			campaignId,
+			name: destination.name,
+			url: destination.url,
+			type: destination.type,
+			platform: destination.platform,
+			enabled: destination.enabled,
+			weight: destination.weight,
+			priority: destination.priority,
+			position: destination.position,
+			geoMode: destination.geoMode,
+			maxDailyClicks: destination.maxDailyClicks,
+			activeFrom: destination.activeFrom,
+			activeUntil: destination.activeUntil,
+			metadata: destination.metadata
+		};
+	});
+	const geoRows = source.destinations.flatMap((destination) =>
+		destination.geoTargets.map((target) => ({
+			destinationId: destinationMap.get(destination.id)!,
+			countryCode: target.countryCode
+		}))
+	);
+	const deepLinkRows = source.destinations.flatMap((destination) =>
+		destination.deepLink
+			? [
+					{
+						destinationId: destinationMap.get(destination.id)!,
+						androidScheme: destination.deepLink.androidScheme,
+						androidPackageName: destination.deepLink.androidPackageName,
+						androidStoreUrl: destination.deepLink.androidStoreUrl,
+						iosScheme: destination.deepLink.iosScheme,
+						iosAppId: destination.deepLink.iosAppId,
+						iosStoreUrl: destination.deepLink.iosStoreUrl,
+						universalLink: destination.deepLink.universalLink,
+						webFallbackUrl: destination.deepLink.webFallbackUrl
+					}
+				]
+			: []
+	);
+
+	const statements: BatchItem<'pg'>[] = [
+		db.insert(campaigns).values({
+			id: campaignId,
+			ownerId: userId,
+			teamId: source.teamId,
+			name: `${source.name} (Copy)`.slice(0, 160),
+			slug,
+			description: source.description,
+			status: 'draft',
+			redirectType: source.redirectType,
+			rotationStrategy: source.rotationStrategy,
+			fallbackUrl: source.fallbackUrl,
+			redirectCode: source.redirectCode,
+			preserveQueryParams: source.preserveQueryParams,
+			stripReferrer: source.stripReferrer,
+			attributionEnabled: source.attributionEnabled,
+			attributionSource: source.attributionSource,
+			attributionMedium: source.attributionMedium,
+			attributionCampaign: source.attributionCampaign,
+			botProtectionEnabled: source.botProtectionEnabled,
+			trackingEnabled: source.trackingEnabled,
+			timezone: source.timezone,
+			startsAt: source.startsAt,
+			endsAt: source.endsAt,
+			metadata: source.metadata
+		})
+	];
+	if (destinationRows.length) statements.push(db.insert(destinations).values(destinationRows));
+	if (geoRows.length) statements.push(db.insert(destinationGeoTargets).values(geoRows));
+	if (deepLinkRows.length) statements.push(db.insert(destinationDeepLinks).values(deepLinkRows));
+	if (source.blockRules.length) {
+		statements.push(
+			db.insert(blockRules).values(
+				source.blockRules.map((rule) => ({
+					ownerId: userId,
+					campaignId,
+					name: rule.name,
+					type: rule.type,
+					operator: rule.operator,
+					action: rule.action,
+					value: rule.value,
+					redirectUrl: rule.redirectUrl,
+					enabled: rule.enabled,
+					position: rule.position,
+					note: rule.note,
+					metadata: rule.metadata
+				}))
+			)
+		);
+	}
+	if (source.popunderSetting) {
+		statements.push(
+			db.insert(popunderSettings).values({
+				campaignId,
+				enabled: source.popunderSetting.enabled,
+				targetUrl: source.popunderSetting.targetUrl,
+				behavior: source.popunderSetting.behavior,
+				delayMs: source.popunderSetting.delayMs,
+				frequencyCap: source.popunderSetting.frequencyCap,
+				frequencyWindowHours: source.popunderSetting.frequencyWindowHours,
+				browserRules: source.popunderSetting.browserRules
+			})
+		);
+	}
+	if (source.safelinkPage) {
+		statements.push(
+			db.insert(safelinkPages).values({
+				campaignId,
+				title: source.safelinkPage.title,
+				status: 'draft',
+				document: source.safelinkPage.document,
+				theme: source.safelinkPage.theme,
+				customCss: source.safelinkPage.customCss
+			})
+		);
+	}
+
+	await db.batch(statements as [BatchItem<'pg'>, ...BatchItem<'pg'>[]]);
+	return { id: campaignId, slug };
 }
 
 function campaignValues(ownerId: string, input: CampaignInput, slug: string) {
