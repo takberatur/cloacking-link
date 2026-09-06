@@ -16,7 +16,7 @@
 </script>
 
 <AppSidebarLayout page="Audit log" user={data.user} setting={data.setting}>
-	<div class="mx-auto w-full max-w-7xl space-y-5 px-1 sm:px-3">
+	<div class="space-y-5 px-1 sm:px-3">
 		<header class="border-b border-border pb-5">
 			<p class="text-sm text-muted-foreground">Administration</p>
 			<h1 class="mt-1 text-2xl font-semibold">Audit log</h1>

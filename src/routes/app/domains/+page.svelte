@@ -24,7 +24,7 @@
 </script>
 
 <AppSidebarLayout page="Custom domains" user={data.user} setting={data.setting}>
-	<div class="mx-auto w-full max-w-6xl space-y-6 px-1 sm:px-3">
+	<div class="space-y-5 px-1 sm:px-3">
 		<header class="border-b border-border pb-5">
 			<p class="text-sm text-muted-foreground">Campaign delivery</p>
 			<h1 class="mt-1 text-2xl font-semibold">Custom domains</h1>

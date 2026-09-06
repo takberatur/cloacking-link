@@ -13,7 +13,7 @@
 </script>
 
 <AppSidebarLayout page="User detail" user={data.user} setting={data.setting}>
-	<div class="mx-auto w-full max-w-5xl space-y-6 px-1 sm:px-3">
+	<div class="space-y-5 px-1 sm:px-3">
 		<header class="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
 			<div>
 				<a
